@@ -29,17 +29,26 @@ sudo pacman -S --noconfirm \
   noto-fonts-cjk \
   noto-fonts-emoji \
   noto-fonts-extra \
+  steam \
   telegram-desktop \
+  ttf-jetbrains-mono-nerd \
   waybar \
+  xorg-xwayland \
   yazi
 
 paru -S --noconfirm \
   android-studio \
   google-chrome \
-  polychromatic
+  polychromatic \
+  visual-studio-code-bin
 
 sudo gpasswd -a $USER openrazer
 echo "✅ Packages installed"
+
+echo "📝 Installing LazyVim..."
+git clone https://github.com/LazyVim/starter ~/.config/nvim
+rm -rf ~/.config/nvim/.git
+echo "✅ LazyVim installed"
 
 echo "🔄 Updating bash configs..."
 rm -f "$HOME/.bashrc" "$HOME/.bash_profile"
@@ -70,7 +79,12 @@ cp ".config/starship.toml" "$HOME/.config/"
 echo "✅ Configs updated"
 
 echo "🗑️ Removing unused packages..."
-sudo pacman -Rns kitty dunst
+sudo pacman -Rns kitty \
+  dunst \
+  dolphin \
+  wofi \
+  sddm
+
 echo "✅ Unused packages removed"
 
 echo "🔄 Updating system..."
