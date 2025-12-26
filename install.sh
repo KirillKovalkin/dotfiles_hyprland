@@ -24,6 +24,7 @@ sudo pacman -S --noconfirm \
   fuzzel \
   hyprshot \
   mako \
+  neovim \
   noto-fonts \
   noto-fonts-cjk \
   noto-fonts-emoji \
