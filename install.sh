@@ -93,12 +93,12 @@ cp ".config/starship.toml" "$HOME/.config/"
 echo "✅ Configs updated"
 
 echo "🗑️ Removing unused packages..."
-sudo pacman -Rns kitty \
-  dunst \
+sudo pacman -R --noconfirm \
   dolphin \
-  wofi \
-  sddm
-
+  dunst \
+  kitty \
+  sddm \
+  wofi
 echo "✅ Unused packages removed"
 
 echo "🔄 Updating system..."
