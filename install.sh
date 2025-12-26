@@ -2,14 +2,44 @@
 
 set -e
 
-echo "📦 Installing paru"
+echo "🔧 Installing build dependencies..."
+sudo pacman -S --needed base-devel git --noconfirm
+echo "✅ Dependencies installed"
+
+echo "📦 Installing paru..."
 git clone https://aur.archlinux.org/paru.git
 cd paru
 makepkg -si
+cd ..
+rm -rf paru
 echo "✅ Paru installation complete"
 
-echo "📥 Installing packages"
-sudo pacman -S noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra telegram-desktop fastfetch discord fuzzel btop yazi hyprshot android-tools --noconfirm
-paru -S polychromatic google-chrome android-studio --noconfirm
+echo "📥 Installing packages..."
+sudo pacman -S --noconfirm \
+  alacritty \
+  android-tools \
+  btop \
+  discord \
+  fastfetch \
+  fuzzel \
+  hyprshot \
+  noto-fonts \
+  noto-fonts-cjk \
+  noto-fonts-emoji \
+  noto-fonts-extra \
+  telegram-desktop \
+  waybar \
+  yazi
+
+paru -S --noconfirm \
+  android-studio \
+  google-chrome \
+  polychromatic
+
 sudo gpasswd -a $USER openrazer
-echo "✅ Packages is installed"
+echo "✅ Packages installed"
+
+echo "🔄 Updating bash configs..."
+rm -f ~/.bashrc ~/.bash_profile
+cp .bashrc .bash_profile ~/
+echo "✅ Bash configs updated"
