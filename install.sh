@@ -16,25 +16,39 @@ echo "✅ Paru installation complete"
 
 echo "📥 Installing packages..."
 sudo pacman -S --noconfirm \
+  7zip \
   alacritty \
+  bash-completion \
   android-tools \
+  bat \
   btop \
   discord \
+  eza \
   fastfetch \
+  fd \
   fuzzel \
+  fzf \
   hyprshot \
+  libreoffice-fresh \
   mako \
+  mise \
   neovim \
   noto-fonts \
   noto-fonts-cjk \
   noto-fonts-emoji \
   noto-fonts-extra \
+  ripgrep \
+  starship \
   steam \
   telegram-desktop \
   ttf-jetbrains-mono-nerd \
+  unzip \
   waybar \
+  wiremix \
+  wl-clipboard \
   xorg-xwayland \
-  yazi
+  yazi \
+  zoxide
 
 paru -S --noconfirm \
   android-studio \
