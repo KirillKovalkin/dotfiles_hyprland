@@ -1,9 +1,5 @@
-#
-# ~/.bash_profile
-#
-
 if [[ -z $DISPLAY ]] && [[ $(tty) == /dev/tty1 ]]; then
-  exec start-hyprland
+  if uwsm check may-start; then
+    exec uwsm start hyprland-uwsm.desktop
+  fi
 fi
-
-[[ -f ~/.bashrc ]] && . ~/.bashrc
