@@ -11,6 +11,7 @@
     "clock"
   ],
   "modules-right": [
+    "hyprland/language",
     "group/tray-expander",
     "network",
     "pulseaudio",
@@ -113,5 +114,10 @@
   "tray": {
     "icon-size": 12,
     "spacing": 17
+  },
+  "hyprland/language": {
+    "format": " {} ",
+    "format-en": "en",
+    "format-ru": "ru"
   }
 }
