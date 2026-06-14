@@ -19,12 +19,11 @@ echo "✅ Dependencies installed"
 
 # ── 3. Install paru (binary from AUR — much faster than building from source) ──
 
-echo "📦 Installing paru-bin..."
+echo "📦 Installing paru..."
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
-git clone --depth 1 https://aur.archlinux.org/paru-bin.git "$tmpdir/paru-bin"
-cd "$tmpdir/paru-bin"
-makepkg -si --noconfirm
+git clone --depth 1 https://aur.archlinux.org/paru.git "$tmpdir/paru"
+cd "$tmpdir/paru" && makepkg -si --noconfirm
 cd "$SCRIPT_DIR"
 echo "✅ Paru installation complete"
 
