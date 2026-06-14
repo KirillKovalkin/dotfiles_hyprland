@@ -1,42 +1,65 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-set -e
+set -euo pipefail
+
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# ── 1. System update first ────────────────────────────────────────────────────
+
+echo "🔄 Updating system before package install..."
+sudo pacman -Syu --noconfirm
+echo "✅ System updated"
+
+# ── 2. Build dependencies ─────────────────────────────────────────────────────
 
 echo "🔧 Installing build dependencies..."
-sudo pacman -S --needed base-devel git --noconfirm
+sudo pacman -S --needed --noconfirm base-devel git
 echo "✅ Dependencies installed"
 
-echo "📦 Installing paru..."
-git clone https://aur.archlinux.org/paru.git
-cd paru
-makepkg -si
-cd ..
-rm -rf paru
+# ── 3. Install paru (binary from AUR — much faster than building from source) ──
+
+echo "📦 Installing paru-bin..."
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "$tmpdir"' EXIT
+git clone --depth 1 https://aur.archlinux.org/paru-bin.git "$tmpdir/paru-bin"
+cd "$tmpdir/paru-bin"
+makepkg -si --noconfirm
+cd "$SCRIPT_DIR"
 echo "✅ Paru installation complete"
 
-echo "📥 Installing packages..."
-sudo pacman -S --noconfirm \
+# ── 4. Official repo packages ─────────────────────────────────────────────────
+
+echo "📥 Installing official packages..."
+sudo pacman -S --needed --noconfirm \
   7zip \
   alacritty \
-  bash-completion \
   android-tools \
+  bash-completion \
   bat \
+  brightnessctl \
   btop \
+  cliphist \
   discord \
   eza \
   fastfetch \
   fd \
+  feh \
+  ffmpeg \
   fuzzel \
   fzf \
+  hyprlock \
+  hyprpaper \
   hyprshot \
+  imagemagick \
   libreoffice-fresh \
   mako \
-  mise \
   neovim \
   noto-fonts \
   noto-fonts-cjk \
   noto-fonts-emoji \
   noto-fonts-extra \
+  playerctl \
   ripgrep \
   starship \
   steam \
@@ -44,34 +67,49 @@ sudo pacman -S --noconfirm \
   ttf-jetbrains-mono-nerd \
   unzip \
   waybar \
-  wiremix \
+  wireplumber \
   wl-clipboard \
+  xdg-desktop-portal-hyprland \
   xorg-xwayland \
   yazi \
+  hyprpolkitagent \
+  mise \
+  uwsm \
+  wiremix \
   zoxide
+echo "✅ Official packages installed"
 
-paru -S --noconfirm \
+# ── 5. AUR packages ───────────────────────────────────────────────────────────
+
+echo "📥 Installing AUR packages..."
+paru -S --needed --noconfirm \
   android-studio \
+  cursor-bin \
   google-chrome \
-  polychromatic \
   visual-studio-code-bin
+echo "✅ AUR packages installed"
 
-sudo gpasswd -a $USER openrazer
-echo "✅ Packages installed"
+# ── 6. Copy pacman.conf ───────────────────────────────────────────────────────
 
-echo "📝 Installing LazyVim..."
-git clone https://github.com/LazyVim/starter ~/.config/nvim
-rm -rf ~/.config/nvim/.git
-echo "✅ LazyVim installed"
+echo "📝 Updating pacman.conf..."
+sudo cp /etc/pacman.conf /etc/pacman.conf.bak
+sudo cp "$SCRIPT_DIR/pacman.conf" /etc/pacman.conf
+echo "✅ pacman.conf updated (backup at /etc/pacman.conf.bak)"
 
-echo "🔄 Updating bash configs..."
-rm -f "$HOME/.bashrc" "$HOME/.bash_profile"
-cp .bashrc .bash_profile "$HOME/"
-echo "✅ Bash configs updated"
+# ── 7. Copy bash configs ─────────────────────────────────────────────────────
 
-echo "🔄 Updating configs in ~/.config..."
+echo "🔄 Installing bash configs..."
+for file in .bashrc .bash_profile; do
+  rm -f "$HOME/$file"
+  cp "$SCRIPT_DIR/$file" "$HOME/$file"
+done
+echo "✅ Bash configs installed"
 
-CONFIG_DIRS=(
+# ── 8. Copy ~/.config ─────────────────────────────────────────────────────────
+
+echo "🔄 Installing configs to ~/.config..."
+
+readonly CONFIG_DIRS=(
   alacritty
   bash
   fastfetch
@@ -84,33 +122,69 @@ CONFIG_DIRS=(
 
 for dir in "${CONFIG_DIRS[@]}"; do
   rm -rf "$HOME/.config/$dir"
-  cp -r ".config/$dir" "$HOME/.config/"
+  cp -r "$SCRIPT_DIR/.config/$dir" "$HOME/.config/$dir"
 done
 
 rm -f "$HOME/.config/starship.toml"
-cp ".config/starship.toml" "$HOME/.config/"
+cp "$SCRIPT_DIR/.config/starship.toml" "$HOME/.config/starship.toml"
+echo "✅ Configs installed"
 
-echo "✅ Configs updated"
+# ── 9. Create wallpaper directory ─────────────────────────────────────────────
 
-echo "🗑️ Removing unused packages..."
-sudo pacman -R --noconfirm \
-  dolphin \
-  dunst \
-  kitty \
-  sddm \
+echo "🖼️  Ensuring wallpaper directory exists..."
+mkdir -p "$HOME/Pictures/Wallpaper"
+if [[ ! -f "$HOME/Pictures/Wallpaper/wallpaper.webp" ]]; then
+  echo "⚠️  No wallpaper found at ~/Pictures/Wallpaper/wallpaper.webp"
+  echo "   Place one there for hyprpaper and hyprlock to work."
+fi
+
+# ── 10. Remove unwanted packages (if installed) ───────────────────────────────
+
+echo "🗑️  Removing unwanted packages..."
+unwanted=(
+  dolphin
+  dunst
+  kitty
+  sddm
   wofi
-echo "✅ Unused packages removed"
+)
 
-echo "🔄 Updating system..."
+to_remove=()
+for pkg in "${unwanted[@]}"; do
+  if pacman -Qi "$pkg" &>/dev/null; then
+    to_remove+=("$pkg")
+  fi
+done
+
+if [[ ${#to_remove[@]} -gt 0 ]]; then
+  sudo pacman -R --noconfirm "${to_remove[@]}"
+  echo "✅ Removed: ${to_remove[*]}"
+else
+  echo "ℹ️  None of the unwanted packages are installed"
+fi
+
+# ── 11. Full system upgrade ───────────────────────────────────────────────────
+
+echo "🔄 Full system upgrade..."
 sudo pacman -Syu --noconfirm
 paru -Syu --noconfirm
 
-orphans=$(pacman -Qtdq)
+orphans="$(pacman -Qtdq || true)"
 if [[ -n "$orphans" ]]; then
-  sudo pacman -Rns $orphans --noconfirm
-  echo "🗑️ Removed orphan packages"
+  sudo pacman -Rns --noconfirm $orphans
+  echo "🗑️  Removed orphan packages"
 else
-  echo "ℹ️ No orphan packages found"
+  echo "ℹ️  No orphan packages found"
 fi
 
-echo "✅ System updated"
+# ── 12. Done ──────────────────────────────────────────────────────────────────
+
+echo ""
+echo "══════════════════════════════════════════════════════════════════════════"
+echo "  ✅ All done!"
+echo ""
+echo "  Next steps:"
+echo "    - Place your wallpaper: ~/Pictures/Wallpaper/wallpaper.webp"
+echo "    - Reboot into Hyprland"
+echo "    - Open nvim — LazyVim will bootstrap itself on first launch"
+echo "══════════════════════════════════════════════════════════════════════════"
