@@ -35,7 +35,7 @@ hl.bind(mainMod .. " + TAB", function()
 end)
 
 -- Hyprlock bind
-hl.bind("SUPER + L", hl.dsp.exec_cmd("hyprlock"))
+hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("hyprlock"))
 
 -- Fullscreen
 hl.bind(mainMod .. " + F", hl.dsp.window.fullscreen({ action = "toggle" }))
