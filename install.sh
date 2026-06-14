@@ -61,7 +61,6 @@ sudo pacman -S --needed --noconfirm \
   playerctl \
   ripgrep \
   starship \
-  steam \
   telegram-desktop \
   ttf-jetbrains-mono-nerd \
   unzip \
