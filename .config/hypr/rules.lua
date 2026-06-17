@@ -51,31 +51,31 @@ hl.window_rule({
 -- Application-specific window rules
 hl.window_rule({
     name = "Visual Studio Code",
-    match = { class = "^(code)$" },
+    match = { class = "code" },
     workspace = 1,
 })
 
 hl.window_rule({
     name = "YouTube Music",
-    match = { class = "^(chrome-music\\.youtube\\.com__-Default)$" },
+    match = { class = "chrome-music.youtube.com__-Default" },
     workspace = 5,
 })
 
 hl.window_rule({
     name = "Steam",
-    match = { class = "^(steam)$", title = "^(Steam|Friends List)$" },
+    match = { class = "steam", title = "^(Steam|Friends List)$" },
     workspace = 4,
     tile = true,
 })
 
 hl.window_rule({
     name = "Telegram",
-    match = { class = "^(org.telegram.desktop)$" },
+    match = { class = "org.telegram.desktop" },
     workspace = 3,
 })
 
 hl.window_rule({
     name = "Discord",
-    match = { class = "^chrome-discord\\.com__app-Default$"},
+    match = { class = "chrome-discord.com__app-Default" },
     workspace = 3,
 })
