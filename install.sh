@@ -127,14 +127,18 @@ rm -f "$HOME/.config/starship.toml"
 cp "$SCRIPT_DIR/.config/starship.toml" "$HOME/.config/starship.toml"
 echo "✅ Configs installed"
 
-# ── 9. Create wallpaper directory ─────────────────────────────────────────────
+# ── 9. Enable user systemd services ──────────────────────────────────────────
 
-echo "🖼️  Ensuring wallpaper directory exists..."
-mkdir -p "$HOME/Pictures/Wallpaper"
-if [[ ! -f "$HOME/Pictures/Wallpaper/wallpaper.webp" ]]; then
-  echo "⚠️  No wallpaper found at ~/Pictures/Wallpaper/wallpaper.webp"
-  echo "   Place one there for hyprpaper and hyprlock to work."
-fi
+echo "🔧 Enabling user systemd services..."
+systemctl --user enable --now \
+  hyprpaper.service \
+  waybar.service \
+  hyprpolkitagent.service \
+  mako.service \
+  cliphist.service \
+  foot-server.socket
+
+echo "✅ User systemd services enabled"
 
 # ── 10. Remove unwanted packages (if installed) ───────────────────────────────
 
