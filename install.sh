@@ -32,7 +32,6 @@ echo "✅ Paru installation complete"
 echo "📥 Installing official packages..."
 sudo pacman -S --needed --noconfirm \
   7zip \
-  alacritty \
   android-tools \
   bash-completion \
   bat \
@@ -45,6 +44,7 @@ sudo pacman -S --needed --noconfirm \
   fd \
   feh \
   ffmpeg \
+  foot \
   fuzzel \
   fzf \
   hyprlock \
