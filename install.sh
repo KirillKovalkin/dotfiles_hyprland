@@ -113,7 +113,6 @@ readonly CONFIG_DIRS=(
   fuzzel
   hypr
   mako
-  nvim
   waybar
 )
 
@@ -125,6 +124,92 @@ done
 rm -f "$HOME/.config/starship.toml"
 cp "$SCRIPT_DIR/.config/starship.toml" "$HOME/.config/starship.toml"
 echo "✅ Configs installed"
+
+# ── 8.1 Neovim config: bootstrap LazyVim + Catppuccin ─────────────────────────
+echo "🔧 Generating Neovim config for LazyVim + Catppuccin mocha..."
+
+NVIM_CONFIG="$HOME/.config/nvim"
+TS=$(date +%Y%m%d%H%M%S)
+
+# Backup existing config instead of destructive removal
+if [ -d "$NVIM_CONFIG" ] && [ ! -L "$NVIM_CONFIG" ]; then
+  echo "Found existing $NVIM_CONFIG — moving to ${NVIM_CONFIG}.bak.$TS"
+  mv "$NVIM_CONFIG" "${NVIM_CONFIG}.bak.$TS"
+fi
+
+mkdir -p "$NVIM_CONFIG/lua/config" "$NVIM_CONFIG/lua/plugins"
+
+cat > "$NVIM_CONFIG/init.lua" <<'EOF'
+-- bootstrap lazy.nvim, LazyVim and your plugins
+require("config.lazy")
+EOF
+
+cat > "$NVIM_CONFIG/lua/config/lazy.lua" <<'EOF'
+local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+if not (vim.uv or vim.loop).fs_stat(lazypath) then
+  local lazyrepo = "https://github.com/folke/lazy.nvim.git"
+  local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath })
+  if vim.v.shell_error ~= 0 then
+    vim.api.nvim_echo({
+      { "Failed to clone lazy.nvim:\n", "ErrorMsg" },
+      { out, "WarningMsg" },
+      { "\nPress any key to exit...", "" },
+    }, true, {})
+    vim.fn.getchar()
+    os.exit(1)
+  end
+end
+vim.opt.rtp:prepend(lazypath)
+
+require("lazy").setup({
+  spec = {
+    { "LazyVim/LazyVim", import = "lazyvim.plugins" },
+    { import = "plugins" },
+  },
+  defaults = {
+    lazy = false,
+    version = false,
+  },
+  install = { colorscheme = { "catppuccin", "habamax" } },
+  checker = { enabled = true, notify = false },
+  performance = {
+    rtp = {
+      disabled_plugins = {
+        "gzip",
+        "tarPlugin",
+        "tohtml",
+        "tutor",
+        "zipPlugin",
+      },
+    },
+  },
+})
+EOF
+
+cat > "$NVIM_CONFIG/lua/plugins/colorscheme.lua" <<'EOF'
+return {
+  {
+    "catppuccin/nvim",
+    name = "catppuccin",
+    opts = {
+      flavour = "mocha",
+      background = { light = "latte", dark = "mocha" },
+      transparent_background = false,
+      term_colors = true,
+    },
+  },
+}
+EOF
+
+# Run lazy sync only if Neovim is available
+if command -v nvim >/dev/null 2>&1; then
+  echo "⏳ Running 'nvim --headless +\"Lazy sync\" +qall'..."
+  nvim --headless +'Lazy sync' +qall || true
+else
+  echo "⚠️ Neovim not found; skipping plugin sync. Install Neovim to complete setup."
+fi
+
+echo "✅ Neovim config installed at $NVIM_CONFIG"
 
 # ── 9. Enable user systemd services ──────────────────────────────────────────
 
