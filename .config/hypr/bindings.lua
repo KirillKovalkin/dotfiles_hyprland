@@ -9,7 +9,10 @@ local apps = require("apps")
 hl.bind(mainMod .. " + RETURN", hl.dsp.exec_cmd(apps.terminal))
 hl.bind(mainMod .. " + W", hl.dsp.window.close())
 hl.bind(mainMod .. " + SHIFT + W", hl.dsp.window.kill())
-hl.bind(mainMod .. " + M", hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch exit"))
+hl.bind(
+	mainMod .. " + M",
+	hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch exit")
+)
 -- hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(apps.fileManager)) -- not using
 hl.bind(mainMod .. " + V", hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mainMod .. " + SHIFT + R", hl.dsp.exec_cmd(apps.menu))
@@ -93,7 +96,7 @@ hl.bind("XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"), { locked = true 
 hl.bind("Print", hl.dsp.exec_cmd("hyprshot -m region --clipboard-only"))
 
 -- Clipboard manager
-hl.bind(mainMod .. " + SHIFT + V", hl.dsp.exec_cmd("cliphist list | fuzzel --dmenu | cliphist decode | wl-copy"))
+hl.bind(mainMod .. " + SHIFT + V", hl.dsp.exec_cmd("qs ipc call clipboard toggle"))
 
 -- Launch Applications
 hl.bind(mainMod .. " + SHIFT + B", hl.dsp.exec_cmd(apps.browser))

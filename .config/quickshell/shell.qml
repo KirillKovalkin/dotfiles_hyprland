@@ -19,6 +19,7 @@ Scope {
   ThemeSwitcher { id: ts }
   Bar { theme: ts.theme }
   AppLauncher { theme: ts.theme }
+  ClipboardLauncher { theme: ts.theme }
   NotificationPopup { theme: ts.theme }
   WallpaperManager { theme: ts.theme }
   OSD { theme: ts.theme }
