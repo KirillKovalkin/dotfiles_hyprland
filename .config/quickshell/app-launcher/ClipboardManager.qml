@@ -143,7 +143,7 @@ Scope {
 
   // Toggle visibility via IPC
   IpcHandler {
-    target: "clipboardLauncher"
+    target: "clipboard-manager"
     function toggle() { panel.visible = !panel.visible; if (panel.visible) { refreshList(); selectedIndex = entriesModel.count > 0 ? 0 : -1; box.forceActiveFocus(); } }
   }
 }

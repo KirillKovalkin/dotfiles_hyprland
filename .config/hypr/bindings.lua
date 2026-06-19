@@ -96,7 +96,7 @@ hl.bind("XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"), { locked = true 
 hl.bind("Print", hl.dsp.exec_cmd("hyprshot -m region --clipboard-only"))
 
 -- Clipboard manager
-hl.bind(mainMod .. " + SHIFT + V", hl.dsp.exec_cmd("qs ipc call clipboardLauncher toggle"))
+hl.bind(mainMod .. " + SHIFT + V", hl.dsp.exec_cmd("qs ipc call clipboard-manager toggle"))
 
 -- Launch Applications
 hl.bind(mainMod .. " + SHIFT + B", hl.dsp.exec_cmd(apps.browser))
