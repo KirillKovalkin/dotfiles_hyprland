@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
 cd "$SCRIPT_DIR"
 
 # ── 1. System update first ────────────────────────────────────────────────────
@@ -20,12 +21,16 @@ echo "✅ Dependencies installed"
 # ── 3. Install paru (binary from AUR — much faster than building from source) ──
 
 echo "📦 Installing paru..."
-tmpdir="$(mktemp -d)"
-trap 'rm -rf "$tmpdir"' EXIT
-git clone --depth 1 https://aur.archlinux.org/paru.git "$tmpdir/paru"
-cd "$tmpdir/paru" && makepkg -si --noconfirm
-cd "$SCRIPT_DIR"
-echo "✅ Paru installation complete"
+if command -v paru >/dev/null 2>&1; then
+  echo "ℹ️  paru already installed; skipping"
+else
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "$tmpdir"' EXIT
+  git clone --depth 1 https://aur.archlinux.org/paru.git "$tmpdir/paru"
+  cd "$tmpdir/paru" && makepkg -si --noconfirm
+  cd "$SCRIPT_DIR"
+  echo "✅ Paru installation complete"
+fi
 
 # ── 4. Official repo packages ─────────────────────────────────────────────────
 
@@ -44,14 +49,12 @@ sudo pacman -S --needed --noconfirm \
   feh \
   ffmpeg \
   foot \
-  fuzzel \
   fzf \
   hyprlock \
   hyprpaper \
   hyprshot \
   imagemagick \
   libreoffice-fresh \
-  mako \
   neovim \
   noto-fonts \
   noto-fonts-cjk \
@@ -63,7 +66,6 @@ sudo pacman -S --needed --noconfirm \
   telegram-desktop \
   ttf-jetbrains-mono-nerd \
   unzip \
-  waybar \
   wireplumber \
   wl-clipboard \
   xdg-desktop-portal-hyprland \
@@ -73,6 +75,7 @@ sudo pacman -S --needed --noconfirm \
   mise \
   uwsm \
   wiremix \
+  quickshell \
   zoxide
 echo "✅ Official packages installed"
 
@@ -97,8 +100,19 @@ echo "✅ pacman.conf updated (backup at /etc/pacman.conf.bak)"
 
 echo "🔄 Installing bash configs..."
 for file in .bashrc .bash_profile; do
-  rm -f "$HOME/$file"
-  cp "$SCRIPT_DIR/$file" "$HOME/$file"
+  if [ -f "$HOME/$file" ] && [ ! -L "$HOME/$file" ]; then
+    TS=$(date +%Y%m%d%H%M%S)
+    echo "Found existing $HOME/$file — moving to ${HOME}/${file}.bak.$TS"
+    mv "$HOME/$file" "${HOME}/${file}.bak.$TS"
+  else
+    rm -f "$HOME/$file"
+  fi
+
+  if [ -f "$SCRIPT_DIR/$file" ]; then
+    cp "$SCRIPT_DIR/$file" "$HOME/$file"
+  else
+    echo "ℹ️  Source $SCRIPT_DIR/$file not found — skipping"
+  fi
 done
 echo "✅ Bash configs installed"
 
@@ -107,22 +121,28 @@ echo "✅ Bash configs installed"
 echo "🔄 Installing configs to ~/.config..."
 
 readonly CONFIG_DIRS=(
-  alacritty
   bash
   fastfetch
-  fuzzel
+  foot
   hypr
-  mako
-  waybar
+  quickshell
 )
 
 for dir in "${CONFIG_DIRS[@]}"; do
-  rm -rf "$HOME/.config/$dir"
-  cp -r "$SCRIPT_DIR/.config/$dir" "$HOME/.config/$dir"
+  if [ -d "$SCRIPT_DIR/.config/$dir" ]; then
+    rm -rf "$HOME/.config/$dir"
+    cp -r "$SCRIPT_DIR/.config/$dir" "$HOME/.config/$dir"
+  else
+    echo "ℹ️  Skipping $dir — no source config at $SCRIPT_DIR/.config/$dir"
+  fi
 done
 
-rm -f "$HOME/.config/starship.toml"
-cp "$SCRIPT_DIR/.config/starship.toml" "$HOME/.config/starship.toml"
+if [ -f "$SCRIPT_DIR/.config/starship.toml" ]; then
+  rm -f "$HOME/.config/starship.toml"
+  cp "$SCRIPT_DIR/.config/starship.toml" "$HOME/.config/starship.toml"
+else
+  echo "ℹ️  No starship.toml in repo; skipping"
+fi
 echo "✅ Configs installed"
 
 # ── 8.1 Neovim config: bootstrap LazyVim + Catppuccin ─────────────────────────
@@ -214,15 +234,16 @@ echo "✅ Neovim config installed at $NVIM_CONFIG"
 # ── 9. Enable user systemd services ──────────────────────────────────────────
 
 echo "🔧 Enabling user systemd services..."
-systemctl --user enable --now \
-  hyprpaper.service \
-  waybar.service \
-  hyprpolkitagent.service \
-  mako.service \
-  cliphist.service \
-  foot-server.socket
-
-echo "✅ User systemd services enabled"
+if systemctl --user --version >/dev/null 2>&1; then
+  systemctl --user enable --now \
+    hyprpaper.service \
+    hyprpolkitagent.service \
+    cliphist.service \
+    foot-server.socket || true
+  echo "✅ User systemd services enabled (where available)"
+else
+  echo "⚠️ systemd --user not available; skipping user service enablement"
+fi
 
 # ── 10. Remove unwanted packages (if installed) ───────────────────────────────
 
@@ -255,9 +276,9 @@ echo "🔄 Full system upgrade..."
 sudo pacman -Syu --noconfirm
 paru -Syu --noconfirm
 
-orphans="$(pacman -Qtdq || true)"
-if [[ -n "$orphans" ]]; then
-  sudo pacman -Rns --noconfirm $orphans
+mapfile -t orphan_array < <(pacman -Qtdq || true)
+if [[ ${#orphan_array[@]} -gt 0 ]]; then
+  sudo pacman -Rns --noconfirm "${orphan_array[@]}"
   echo "🗑️  Removed orphan packages"
 else
   echo "ℹ️  No orphan packages found"
