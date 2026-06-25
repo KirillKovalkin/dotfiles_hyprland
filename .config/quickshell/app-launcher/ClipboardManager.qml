@@ -15,6 +15,7 @@ Scope {
   property string previewCaption: ""
   property int thumbGeneration: 0
   property bool decoding: false
+  property bool keyboardNavigating: false
   property var decodeQueue: []
   readonly property string thumbDir: Quickshell.env("HOME") + "/.cache/quickshell/cliphist-thumbs"
   readonly property bool showingImagePreview: selectedIndex >= 0
@@ -132,6 +133,7 @@ Scope {
     decodeQueue = []
     previewSource = ""
     previewCaption = ""
+    selectedIndex = -1
     listProc.running = true
   }
 
@@ -174,7 +176,9 @@ Scope {
       } else if (root.selectedIndex >= entriesModel.count) {
         root.selectedIndex = entriesModel.count - 1
       }
-      listView.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+      if (root.selectedIndex >= 0) {
+        listView.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+      }
     }
   }
 
@@ -219,9 +223,19 @@ Scope {
 
       Keys.onPressed: event => {
         if (event.key === Qt.Key_Down) {
-          event.accepted = true; root.selectedIndex = Math.min(root.selectedIndex + 1, listView.count - 1); listView.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+          event.accepted = true
+          root.keyboardNavigating = true
+          if (listView.count > 0) {
+            root.selectedIndex = (root.selectedIndex + 1) % listView.count
+            listView.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+          }
         } else if (event.key === Qt.Key_Up) {
-          event.accepted = true; root.selectedIndex = Math.max(root.selectedIndex - 1, 0); listView.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+          event.accepted = true
+          root.keyboardNavigating = true
+          if (listView.count > 0) {
+            root.selectedIndex = (root.selectedIndex - 1 + listView.count) % listView.count
+            listView.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+          }
         } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
           event.accepted = true; root.copyEntry(root.selectedIndex); panel.visible = false
         } else if (event.key === Qt.Key_Delete) {
@@ -372,7 +386,10 @@ Scope {
             MouseArea {
               anchors.fill: parent
               hoverEnabled: true
-              onEntered: root.selectedIndex = index
+              onEntered: {
+                if (!root.keyboardNavigating) root.selectedIndex = index
+              }
+              onPositionChanged: root.keyboardNavigating = false
               onClicked: { root.copyEntry(index); panel.visible = false }
             }
           }
