@@ -189,13 +189,13 @@ Scope {
         if (event.key === Qt.Key_Down) {
           event.accepted = true
           if (listView.count > 0) {
-            root.selectedIndex = Math.min(root.selectedIndex + 1, listView.count - 1)
+            root.selectedIndex = (root.selectedIndex + 1) % listView.count
             listView.positionViewAtIndex(root.selectedIndex, ListView.Contain)
           }
         } else if (event.key === Qt.Key_Up) {
           event.accepted = true
           if (listView.count > 0) {
-            root.selectedIndex = Math.max(root.selectedIndex - 1, 0)
+            root.selectedIndex = (root.selectedIndex - 1 + listView.count) % listView.count
             listView.positionViewAtIndex(root.selectedIndex, ListView.Contain)
           }
         } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
