@@ -51,50 +51,41 @@ Singleton {
     readonly property color batteryWarning:  accentOrange
     readonly property color batteryCritical: accentRed
 
-    // Theme application is purely internal — Quickshell reacts to color property
-    // changes via the reactive bindings below. No external tools (kitty/hyprland/
-    // gsettings) are modified.
-    function applyTheme(t) {
-        // all work is done by reactive property bindings
-    }
+    // Shared font — use this everywhere instead of hardcoding
+    readonly property string fontFamily: "JetBrainsMono Nerd Font"
 
     function setTheme(index) {
         if (index >= 0 && index < themes.length) {
             currentIndex = index
-            saveProc.command = ["sh", "-c",
+            themeSaveProc.command = ["sh", "-c",
                 'printf "%s" "$1" > "$HOME/.config/quickshell/theme.conf"',
                 "sh", String(index)]
-            saveProc.running = true
-            applyTheme(themes[index])
+            themeSaveProc.running = true
         }
     }
 
-    Process { id: saveProc; running: false }
+    Process { id: themeSaveProc; running: false }
 
-    Process {
-        id: loadProc
-        command: ["sh", "-c", "cat $HOME/.config/quickshell/theme.conf 2>/dev/null"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const idx = parseInt(text.trim())
-                if (!isNaN(idx) && idx >= 0 && idx < root.themes.length) {
-                    root.currentIndex = idx
-                    root.applyTheme(root.themes[idx])
-                }
-            }
+    // ── Persistent theme index ────────────────────────────────────────────
+    FileView {
+        id: themeFile
+        path: Quickshell.env("HOME") + "/.config/quickshell/theme.conf"
+        onTextChanged: {
+            const idx = parseInt(text())
+            if (!isNaN(idx) && idx >= 0 && idx < root.themes.length)
+                root.currentIndex = idx
         }
     }
 
+    // ── Theme definitions ─────────────────────────────────────────────────
     FileView {
         id: themesFile
         path: Quickshell.env("HOME") + "/.config/quickshell/themeswitcher/themes.json"
         onTextChanged: {
-            const raw = themesFile.text()
+            const raw = text()
             if (!raw) return
             try {
                 root.themes = JSON.parse(raw)
-                loadProc.running = true
             } catch (e) {
                 console.error("Failed to parse themes.json:", e)
             }

@@ -5,20 +5,31 @@
 //@ pragma Env QT_QUICK_FLICKABLE_WHEEL_DECELERATION=10000
 
 import Quickshell
-import Quickshell.Io
-import QtQuick
 import "bar"
 import "applauncher"
 import "clipboardmanager"
 import "notifications"
 import "themeswitcher"
 import "osd"
+import "lockscreen"
 
 Scope {
   ThemeSwitcher { id: ts }
   Bar { theme: ts.theme }
-  AppLauncher { theme: ts.theme }
-  ClipboardManager { theme: ts.theme }
+
+  // ── Lazy-loaded popups (async background load — bar shows faster) ──────
+  LazyLoader {
+    loading: true
+    AppLauncher {}
+  }
+
+  LazyLoader {
+    loading: true
+    ClipboardManager {}
+  }
+
+  // ── Always-loaded components ───────────────────────────────────────────
   NotificationPopup { theme: ts.theme }
   OSD { theme: ts.theme }
+  LockScreen { theme: ts.theme }
 }

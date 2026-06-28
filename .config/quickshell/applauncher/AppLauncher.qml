@@ -3,14 +3,13 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Widgets
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import "../themeswitcher"
 
 Scope {
   id: root
   property var theme: Theme
-  property string font: "JetBrainsMono Nerd Font"
+  property string font: Theme.fontFamily
 
   IpcHandler {
     target: "launcher"
@@ -25,16 +24,18 @@ Scope {
     }
   }
 
-  property int selectedIndex: 0
+  property int selectedIndex: -1
+
+  // Cache DesktopEntries once — sorted, avoids spread-copying the array on every keystroke
+  readonly property var _allApps: [...DesktopEntries.applications.values].sort((a, b) => a.name.localeCompare(b.name))
 
   ScriptModel {
     id: filteredApps
     objectProp: "id"
     values: {
-      const all = [...DesktopEntries.applications.values];
       const q = searchInput.text.trim().toLowerCase();
-      if (q === "") return all.sort((a, b) => a.name.localeCompare(b.name));
-      return all.filter(d =>
+      if (q === "") return root._allApps;
+      return root._allApps.filter(d =>
         (d.name && d.name.toLowerCase().includes(q)) ||
         (d.genericName && d.genericName.toLowerCase().includes(q)) ||
         (d.keywords && d.keywords.some(k => k.toLowerCase().includes(q))) ||
@@ -155,13 +156,11 @@ Scope {
                 text: "Type to search..."
                 color: root.theme.textMuted
                 font: parent.font
-                visible: !parent.text && !parent.activeFocus
+                visible: !parent.text
                 verticalAlignment: Text.AlignVCenter
               }
 
               onTextChanged: root.selectedIndex = text === "" ? -1 : 0
-
-              Keys.onEscapePressed: launcherPanel.visible = false
 
               Keys.onPressed: event => {
                 if (event.key === Qt.Key_Down) {
@@ -182,6 +181,9 @@ Scope {
                   event.accepted = true;
                   root.selectedIndex = Math.min(root.selectedIndex + 1, resultsList.count - 1);
                   resultsList.positionViewAtIndex(root.selectedIndex, ListView.Contain);
+                } else if (event.key === Qt.Key_Escape) {
+                  event.accepted = true;
+                  launcherPanel.visible = false;
                 }
               }
             }
@@ -259,7 +261,7 @@ Scope {
                 // Fallback icon
                 Text {
                   anchors.centerIn: parent
-                  text: ""
+                  text: "\uF489"
                   color: root.theme.accentPrimary
                   font.pixelSize: 20
                   font.family: root.font

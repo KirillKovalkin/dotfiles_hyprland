@@ -82,11 +82,26 @@ Singleton {
         const lines = text.trim().split("\n");
         if (lines.length >= 2) {
           const max = parseInt(lines[1]);
-          if (!isNaN(max) && max > 0) root.brightnessMax = max;
-          brightnessFile.path = lines[0];
-          brightnessReadProc.running = true;
+          if (!isNaN(max) && max > 0) {
+            root.brightnessMax = max;
+            brightnessFile.path = lines[0];
+            brightnessReadProc.running = true;
+            backlightRetry.stop();
+          }
         }
       }
+    }
+  }
+
+  // Retry backlight discovery — handles delayed udev/sysfs at boot
+  Timer {
+    id: backlightRetry
+    interval: 2000
+    running: true
+    repeat: true
+    onTriggered: {
+      if (brightnessFile.path !== "") { stop(); return; }
+      if (!backlightDiscovery.running) backlightDiscovery.running = true;
     }
   }
 
@@ -105,7 +120,7 @@ Singleton {
     interval: 3000
     running: true
     repeat: true
-    onTriggered: { cpuProc.running = true }
+    onTriggered: { if (!cpuProc.running) cpuProc.running = true }
   }
 
   // ── Temperature (CPU + GPU in one sensors call) ──────────────────────────
@@ -130,7 +145,7 @@ Singleton {
     interval: 5000
     running: true
     repeat: true
-    onTriggered: { tempProc.running = true }
+    onTriggered: { if (!tempProc.running) tempProc.running = true }
   }
 
   // ── Keyboard layout (event-driven via Hyprland IPC) ──────────────────────
@@ -192,10 +207,10 @@ Singleton {
     interval: 5000
     running: root.networkType === "disconnected"
     repeat: true
-    onTriggered: { netProc.running = true }
+    onTriggered: { if (!netProc.running) netProc.running = true }
   }
 
-  // ── Battery (event-driven via UPower D-Bus, no polling on desktops) ──────
+  // ── Battery (event-driven via UPower D-Bus) ────────────────────────────
   function _updateBatteryIcon() {
     if (root.batteryCharging) { root.batteryIcon = ""; return; }
     const lvl = root.batteryLevelRaw;
@@ -232,16 +247,33 @@ Singleton {
     root.batteryAvailable = false;
   }
 
-  // React to battery changes (laptops only — batteryAvailable guards execution)
+  // React to battery changes
   Connections {
     target: UPower.displayDevice
     function onPercentageChanged() { if (root.batteryAvailable) root._syncBattery() }
     function onStateChanged()      { if (root.batteryAvailable) root._syncBattery() }
   }
 
+  // Detect battery on startup + handle late UPower initialization
+  property int _batteryRetries: 0
+  readonly property int _batteryMaxRetries: 5
+
+  Timer {
+    id: batteryDiscoveryTimer
+    interval: 2000
+    running: !root.batteryAvailable && root._batteryRetries < root._batteryMaxRetries
+    repeat: true
+    onTriggered: {
+      root._checkBatteryAvailable()
+      root._batteryRetries++
+      if (root.batteryAvailable || root._batteryRetries >= root._batteryMaxRetries) {
+        stop()
+        // Desktop: no battery — never poll again, widget stays hidden
+      }
+    }
+  }
+
   Component.onCompleted: {
-    // Check battery once at startup. On desktops this sets batteryAvailable=false
-    // and no further battery work is ever done.
-    root._checkBatteryAvailable();
+    root._checkBatteryAvailable()
   }
 }

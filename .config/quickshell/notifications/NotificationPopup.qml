@@ -10,7 +10,7 @@ import "../themeswitcher"
 Scope {
     id: root
     property var theme: Theme
-    property string font: "JetBrainsMono Nerd Font"
+    property string font: Theme.fontFamily
 
     IpcHandler {
         target: "notifications"

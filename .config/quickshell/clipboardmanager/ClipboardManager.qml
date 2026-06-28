@@ -3,14 +3,13 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Widgets
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import "../themeswitcher"
 
 Scope {
   id: root
   property var theme: Theme
-  property string font: "JetBrainsMono Nerd Font"
+  property string font: Theme.fontFamily
   property int selectedIndex: -1
   property bool showPreview: false
   property int previewRevision: 0
@@ -18,6 +17,8 @@ Scope {
   property string _inputMode: "keyboard"
   property real _lastMouseX: -1
   property real _lastMouseY: -1
+  // Refresh was requested while listProc was running — retry on exit
+  property bool _refreshPending: false
 
   // ── Data ──────────────────────────────────────────────────────────────────
   ListModel { id: entriesModel }
@@ -48,6 +49,12 @@ Scope {
         entriesModel.append({ id: idTok, text: preview, isImage: img })
         if (entriesModel.count > 150) entriesModel.remove(entriesModel.count - 1)
         if (root.selectedIndex === -1 && entriesModel.count > 0) root.selectedIndex = 0
+      }
+    }
+    onExited: {
+      if (root._refreshPending) {
+        root._refreshPending = false
+        root.refreshList()
       }
     }
   }
@@ -92,6 +99,11 @@ Scope {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   function refreshList() {
+    if (listProc.running) {
+      _refreshPending = true
+      return
+    }
+    _refreshPending = false
     entriesModel.clear()
     selectedIndex = -1
     showPreview = false

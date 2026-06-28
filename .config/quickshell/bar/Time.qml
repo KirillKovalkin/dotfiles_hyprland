@@ -29,6 +29,8 @@ Singleton {
     return Math.ceil(((date - yearStart) / 86400000 + 1) / 7)
   }
 
+  readonly property date currentDate: clock.date
+
   SystemClock {
     id: clock
     precision: SystemClock.Seconds

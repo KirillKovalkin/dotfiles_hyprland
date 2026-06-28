@@ -1,5 +1,4 @@
 import Quickshell
-import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Pipewire
 import QtQuick
@@ -10,12 +9,16 @@ import "../themeswitcher"
 Scope {
   id: root
   property var theme: Theme
-  property string font: "JetBrainsMono Nerd Font"
+  property string font: Theme.fontFamily
 
   property bool showVolume: false
   property bool showBrightness: false
   property real volumeValue: 0
   property bool volumeMuted: false
+
+  // Pre-computed fill ratios — avoids nested Math.max/min in every binding eval
+  readonly property real volumeFillRatio: root.volumeMuted ? 0 : Math.max(0, Math.min(1, root.volumeValue))
+  readonly property real brightnessFillRatio: Math.max(0, Math.min(1, SystemInfo.brightnessValue))
 
   Connections {
     target: Pipewire.defaultAudioSink?.audio ?? null
@@ -72,7 +75,6 @@ Scope {
       WlrLayershell.namespace: "quickshell-osd"
 
       exclusionMode: ExclusionMode.Ignore
-      mask: Region {}
 
       anchors {
         right: true
@@ -121,6 +123,7 @@ Scope {
             }
 
             Rectangle {
+              id: volumeTrack
               Layout.fillHeight: true
               Layout.alignment: Qt.AlignHCenter
               width: 8
@@ -135,7 +138,7 @@ Scope {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.margins: 2
-                height: Math.max(0, (parent.height - 4) * Math.max(0, Math.min(1, root.volumeMuted ? 0 : root.volumeValue)))
+                height: Math.max(0, (volumeTrack.height - 4) * root.volumeFillRatio)
                 radius: 3
                 color: root.volumeMuted ? root.theme.textMuted : root.theme.accentPrimary
 
@@ -186,6 +189,7 @@ Scope {
             }
 
             Rectangle {
+              id: brightnessTrack
               Layout.fillHeight: true
               Layout.alignment: Qt.AlignHCenter
               width: 8
@@ -200,7 +204,7 @@ Scope {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.margins: 2
-                height: Math.max(0, (parent.height - 4) * Math.max(0, Math.min(1, SystemInfo.brightnessValue)))
+                height: Math.max(0, (brightnessTrack.height - 4) * root.brightnessFillRatio)
                 radius: 3
                 color: root.theme.accentOrange
 

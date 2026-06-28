@@ -37,8 +37,8 @@ hl.bind(mainMod .. " + TAB", function()
 	hl.dispatch(hl.dsp.window.bring_to_top())
 end)
 
--- Hyprlock bind
-hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("hyprlock"))
+-- Lockscreen bind
+hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("qs ipc call lockscreen lock"))
 
 -- Fullscreen
 hl.bind(mainMod .. " + F", hl.dsp.window.fullscreen({ action = "toggle" }))
