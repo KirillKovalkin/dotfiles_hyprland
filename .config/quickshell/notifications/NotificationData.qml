@@ -95,8 +95,7 @@ QtObject {
         closed = true;
         NotificationService._remove(notificationData);
         if (notification) try { notification.dismiss(); } catch(e) {}
-        _destroyed = true;
-        destroy();
+        _cleanupAndDestroy();
     }
 
     function invokeAction(identifier): void {
@@ -109,7 +108,24 @@ QtObject {
             });
             if (action) try { action.invoke(); } catch(e) {}
         }
+        _cleanupAndDestroy();
+    }
+
+    function _cleanupAndDestroy(): void {
+        if (_destroyed) return;
         _destroyed = true;
+        _timer.stop();
+        // Detach Connections target to release the notification reference
+        _conn.target = null;
         destroy();
+    }
+
+    Component.onDestruction: {
+        // Safety net: ensure cleanup even if dismiss() wasn't called explicitly
+        if (!_destroyed) {
+            _destroyed = true;
+            _timer.stop();
+            _conn.target = null;
+        }
     }
 }

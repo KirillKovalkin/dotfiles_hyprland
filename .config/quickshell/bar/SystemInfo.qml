@@ -111,14 +111,14 @@ Singleton {
     }
   }
 
-  // ── CPU (reads /proc/stat via pipe — POSIX sh compatible) ───────────────
+  // ── CPU (reads /proc/stat, single-line via awk — SplitParser avoids buffer growth) ──
   Process {
     id: cpuProc
     command: ["sh", "-c",
       "{ head -1 /proc/stat; sleep 0.2; head -1 /proc/stat; } | awk 'NR==1{u=$2+$4;t=$2+$3+$4+$5;i=$5} NR==2{u2=$2+$4;t2=$2+$3+$4+$5;i2=$5; printf \"%.0f%%\", (1-(i2-i)/(t2-t))*100}'"]
     running: true
-    stdout: StdioCollector {
-      onStreamFinished: { root.cpuUsage = text.trim() }
+    stdout: SplitParser {
+      onRead: data => { root.cpuUsage = data.trim() }
     }
   }
 
@@ -129,20 +129,21 @@ Singleton {
     onTriggered: { if (!cpuProc.running) cpuProc.running = true }
   }
 
-  // ── Temperature (CPU + GPU in one sensors call) ──────────────────────────
+  // ── Temperature (CPU + GPU in one sensors call, per-line SplitParser) ────
   Process {
     id: tempProc
     command: ["sh", "-c",
       "sensors 2>/dev/null | awk '/^edge:/{gsub(/\\+/,\"\"); gpu=int($2); hasGpu=1} /Package id 0:/{gsub(/\\+/,\"\"); cpu=int($4); hasCpu=1} /Tctl:/{gsub(/\\+/,\"\"); if(!hasCpu){cpu=int($2); hasCpu=1}} /Tdie:/{gsub(/\\+/,\"\"); if(!hasCpu){cpu=int($2); hasCpu=1}} END{printf \"cpu:%s\\ngpu:%s\\n\", hasCpu?cpu\"°C\":\"N/A\", hasGpu?gpu\"°C\":\"N/A\"}'"]
     running: true
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const lines = text.trim().split("\n")
-        for (let i = 0; i < lines.length; i++) {
-          const parts = lines[i].split(":")
-          if (parts[0] === "cpu") root.temperature = parts[1]
-          if (parts[0] === "gpu") root.gpuTemperature = parts[1]
-        }
+    stdout: SplitParser {
+      onRead: data => {
+        const line = data.trim()
+        const colon = line.indexOf(":")
+        if (colon < 0) return
+        const key = line.substring(0, colon)
+        const val = line.substring(colon + 1)
+        if (key === "cpu") root.temperature = val
+        else if (key === "gpu") root.gpuTemperature = val
       }
     }
   }
@@ -181,15 +182,15 @@ Singleton {
     }
   }
 
-  // ── Network (event-driven via FileView, tab-separated, colon-safe) ──────
+  // ── Network (event-driven via FileView, tab-separated, colon-safe, SplitParser) ──
   Process {
     id: netProc
     command: ["sh", "-c",
       "for iface in /sys/class/net/*; do name=$(basename \"$iface\"); [ \"$name\" = lo ] && continue; oper=$(cat \"$iface/operstate\" 2>/dev/null); [ \"$oper\" != up ] && continue; carrier=$(cat \"$iface/carrier\" 2>/dev/null); [ \"$carrier\" != 1 ] && continue; if [ -d \"$iface/wireless\" ] || [ -d \"$iface/phy80211\" ]; then ssid=$(iwgetid \"$name\" -r 2>/dev/null || iw dev \"$name\" link 2>/dev/null | awk -F': ' '/SSID/{print $2}'); printf 'wifi\t%s\t%s\n' \"${ssid:-WiFi}\" \"$name\"; else printf 'ethernet\tEthernet\t%s\n' \"$name\"; fi; exit; done; printf 'disconnected\t\t\n'"]
     running: true
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const result = text.trim()
+    stdout: SplitParser {
+      onRead: data => {
+        const result = data.trim()
         const parts = result.split("\t")
         root.networkType = parts[0]
         root.networkInfo = parts[1] || "Disconnected"
@@ -281,5 +282,23 @@ Singleton {
 
   Component.onCompleted: {
     root._checkBatteryAvailable()
+  }
+
+  // ── Cleanup: stop all processes and timers on shell exit / reload ────────
+  Component.onDestruction: {
+    backlightRetry.stop()
+    batteryDiscoveryTimer.stop()
+    // Stop looping timers
+    for (const child of [cpuProc, tempProc, netProc, brightnessReadProc,
+                         backlightDiscovery, kbInitProc]) {
+      if (child && child.running) child.running = false
+    }
+    // Detach stdout parsers to release buffers
+    cpuProc.stdout = null
+    tempProc.stdout = null
+    netProc.stdout = null
+    brightnessReadProc.stdout = null
+    backlightDiscovery.stdout = null
+    kbInitProc.stdout = null
   }
 }

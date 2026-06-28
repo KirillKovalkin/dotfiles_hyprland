@@ -184,6 +184,16 @@ Scope {
 
     anchors { top: true; bottom: true; left: true; right: true }
 
+    // Free memory when panel hides: drop the entries model and preview
+    onVisibleChanged: {
+      if (!visible) {
+        entriesModel.clear()
+        root.selectedIndex = -1
+        root.showPreview = false
+        if (previewProc.running) previewProc.running = false
+      }
+    }
+
     // Backdrop
     MouseArea {
       anchors.fill: parent
@@ -497,6 +507,8 @@ Scope {
                 source: root.showPreview
                   ? ("file:///tmp/qs-clipboard-preview.png?" + root.previewRevision)
                   : ""
+                sourceSize.width: 520
+                sourceSize.height: 800
                 fillMode: Image.PreserveAspectFit
                 cache: false
                 smooth: true
@@ -527,5 +539,12 @@ Scope {
         }
       }
     }
+  }
+
+  // ── Cleanup on shell exit / reload ─────────────────────────────────────
+  Component.onDestruction: {
+    [listProc, copyProc, deleteProc, previewProc].forEach(p => {
+      if (p && p.running) p.running = false
+    })
   }
 }

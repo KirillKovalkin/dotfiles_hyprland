@@ -66,6 +66,10 @@ Singleton {
 
     Process { id: themeSaveProc; running: false }
 
+    Component.onDestruction: {
+      if (themeSaveProc.running) themeSaveProc.running = false
+    }
+
     // ── Persistent theme index ────────────────────────────────────────────
     FileView {
         id: themeFile

@@ -18,4 +18,8 @@ Pill {
     command: ["hyprctl", "switchxkblayout", "all", "next"]
     running: false
   }
+
+  Component.onDestruction: {
+    if (kbSwitchProc.running) kbSwitchProc.running = false
+  }
 }

@@ -24,4 +24,8 @@ Pill {
     id: brightnessSetProc
     running: false
   }
+
+  Component.onDestruction: {
+    if (brightnessSetProc.running) brightnessSetProc.running = false
+  }
 }
