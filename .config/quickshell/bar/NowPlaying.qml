@@ -1,41 +1,26 @@
-import Quickshell
 import QtQuick
-import Quickshell.Services.Mpris
 import "../themeswitcher"
 
 Item {
   id: root
 
-  // ── Data model ───────────────────────────────────────────────────────────
-  ScriptModel {
-    id: mprisModel
-    values: Mpris.players.values
-    objectProp: "identity"
-  }
-
-  readonly property var activePlayer: {
-    const players = mprisModel.values;
-    if (!players || players.length === 0) return null;
-    for (const p of players) {
-      if (p.playbackState === MprisPlaybackState.Playing) return p;
-    }
-    return players[0];
-  }
+  // ── Shared data from MprisData singleton (one ScriptModel for all screens) ──
+  readonly property var activePlayer: MprisData.activePlayer
 
   // ── UI ───────────────────────────────────────────────────────────────────
   height: 24
   width: pill.implicitWidth
-  // Bind directly to model length — more reliable than activePlayer chain
-  // when a player quits and Mpris.players removes it from the list.
-  visible: mprisModel.values.length > 0
+  // Hide when no functional player exists (zombie players with canPlay=false
+  // are filtered out by MprisData.activePlayer — pill disappears on tab close).
+  visible: root.activePlayer !== null
 
   Pill {
     id: pill
-    icon: activePlayer && activePlayer.isPlaying ? "󰏤" : "󰐊"
+    icon: root.activePlayer && root.activePlayer.isPlaying ? "󰏤" : "󰐊"
     label: {
-      if (!activePlayer) return "";
-      const artist = activePlayer.trackArtist || "";
-      const title = activePlayer.trackTitle || "";
+      if (!root.activePlayer) return "";
+      const artist = root.activePlayer.trackArtist || "";
+      const title = root.activePlayer.trackTitle || "";
       return artist ? artist + " - " + title : title;
     }
     iconColor: Theme.accentPrimary
@@ -43,14 +28,18 @@ Item {
 
     Accessible.role: Accessible.Button
     Accessible.name: {
-      if (!activePlayer) return "No media";
-      const artist = activePlayer.trackArtist || "";
-      const title = activePlayer.trackTitle || "";
+      if (!root.activePlayer) return "No media";
+      const artist = root.activePlayer.trackArtist || "";
+      const title = root.activePlayer.trackTitle || "";
       return "Now playing: " + (artist ? artist + " - " : "") + title;
     }
 
     onClicked: {
-      if (activePlayer) activePlayer.togglePlaying();
+      // Guard against stale/zombie players that still exist in Mpris.players
+      // but have canTogglePlaying=false (e.g. browser tab just closed).
+      // Per MprisPlayer docs: togglePlaying() may only be called if
+      // canTogglePlaying is true (canPlay || canPause depending on state).
+      if (root.activePlayer && root.activePlayer.canTogglePlaying) root.activePlayer.togglePlaying();
     }
   }
 }

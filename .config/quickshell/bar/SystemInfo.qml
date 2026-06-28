@@ -94,14 +94,20 @@ Singleton {
   }
 
   // Retry backlight discovery — handles delayed udev/sysfs at boot
+  // Limited retries to avoid infinite shell forking on desktop (no /sys/class/backlight)
+  property int _backlightRetries: 0
+  readonly property int _backlightMaxRetries: 5
+
   Timer {
     id: backlightRetry
     interval: 2000
-    running: true
+    running: brightnessFile.path === "" && root._backlightRetries < root._backlightMaxRetries
     repeat: true
     onTriggered: {
       if (brightnessFile.path !== "") { stop(); return; }
+      root._backlightRetries++
       if (!backlightDiscovery.running) backlightDiscovery.running = true;
+      if (root._backlightRetries >= root._backlightMaxRetries) stop();
     }
   }
 

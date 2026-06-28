@@ -82,7 +82,21 @@ Singleton {
         id: themesFile
         path: Quickshell.env("HOME") + "/.config/quickshell/themeswitcher/themes.json"
         onTextChanged: {
-            const raw = text()
+            // Defer JSON.parse to the next event loop iteration so it does
+            // not block the UI thread during FileView signal dispatch.
+            // ~1–2 ms at 90 KB — practically unnoticeable, but technically
+            // synchronous if done inline.
+            themeParseTimer.start()
+        }
+    }
+
+    Timer {
+        id: themeParseTimer
+        interval: 0
+        running: false
+        repeat: false
+        onTriggered: {
+            const raw = themesFile.text()
             if (!raw) return
             try {
                 root.themes = JSON.parse(raw)
