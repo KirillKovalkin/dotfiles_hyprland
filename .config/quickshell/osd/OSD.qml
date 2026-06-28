@@ -4,19 +4,18 @@ import Quickshell.Wayland
 import Quickshell.Services.Pipewire
 import QtQuick
 import QtQuick.Layouts
+import ".."
+import "../bar"
 
 Scope {
   id: root
   property var theme: DefaultTheme {}
-  property string font: "Hack Nerd Font"
+  property string font: "JetBrainsMono Nerd Font"
 
   property bool showVolume: false
   property bool showBrightness: false
   property real volumeValue: 0
   property bool volumeMuted: false
-  property real brightnessValue: 0
-  property real maxBrightness: 1
-  property bool _brightnessReady: false
 
   // PipeWire tracking
   PwObjectTracker {
@@ -45,46 +44,13 @@ Scope {
     onTriggered: root.showVolume = false
   }
 
-  // Brightness monitoring
-  FileView {
-    id: brightnessFile
-    path: ""
-    watchChanges: true
-    onFileChanged: brightnessReadProc.running = true
-  }
-
-  Process {
-    id: brightnessReadProc
-    command: ["brightnessctl", "get"]
-    running: false
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const val = parseInt(text.trim());
-        if (!isNaN(val) && root.maxBrightness > 0) {
-          root.brightnessValue = val / root.maxBrightness;
-          if (root._brightnessReady) {
-            root.showBrightness = true;
-            brightnessHideTimer.restart();
-          }
-          root._brightnessReady = true;
-        }
-      }
-    }
-  }
-
-  Process {
-    id: backlightDiscovery
-    command: ["sh", "-c", "p=$(ls -d /sys/class/backlight/*/brightness 2>/dev/null | head -1); [ -n \"$p\" ] && echo \"$p\" && cat \"${p%brightness}max_brightness\""]
-    running: true
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const lines = text.trim().split("\n");
-        if (lines.length >= 2) {
-          const max = parseInt(lines[1]);
-          if (!isNaN(max) && max > 0) root.maxBrightness = max;
-          brightnessFile.path = lines[0];
-          brightnessReadProc.running = true;
-        }
+  // Brightness OSD trigger — reacts to SystemInfo singleton
+  Connections {
+    target: SystemInfo
+    function onBrightnessValueChanged() {
+      if (SystemInfo.brightnessReady) {
+        root.showBrightness = true;
+        brightnessHideTimer.restart();
       }
     }
   }
@@ -183,12 +149,7 @@ Scope {
             }
 
             Text {
-              text: {
-                if (root.volumeMuted || root.volumeValue <= 0) return "󰖁";
-                if (root.volumeValue < 0.33) return "󰕿";
-                if (root.volumeValue < 0.66) return "󰖀";
-                return "󰕾";
-              }
+              text: SystemInfo.volumeIcon(root.volumeValue, root.volumeMuted)
               color: root.volumeMuted ? root.theme.textMuted : root.theme.accentPrimary
               font.pixelSize: 15
               font.family: root.font
@@ -211,7 +172,7 @@ Scope {
           Behavior on opacity { NumberAnimation { duration: 150 } }
 
           Accessible.role: Accessible.ProgressBar
-          Accessible.name: "Brightness: " + Math.round(root.brightnessValue * 100) + "%"
+          Accessible.name: "Brightness: " + Math.round(SystemInfo.brightnessValue * 100) + "%"
 
           ColumnLayout {
             anchors.fill: parent
@@ -222,7 +183,7 @@ Scope {
             spacing: 8
 
             Text {
-              text: Math.round(root.brightnessValue * 100) + "%"
+              text: Math.round(SystemInfo.brightnessValue * 100) + "%"
               color: root.theme.textSecondary
               font.pixelSize: 10
               font.family: root.font
@@ -244,7 +205,7 @@ Scope {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.margins: 2
-                height: Math.max(0, (parent.height - 4) * Math.max(0, Math.min(1, root.brightnessValue)))
+                height: Math.max(0, (parent.height - 4) * Math.max(0, Math.min(1, SystemInfo.brightnessValue)))
                 radius: 3
                 color: root.theme.accentOrange
 

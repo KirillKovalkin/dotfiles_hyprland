@@ -5,17 +5,19 @@ import Quickshell.Widgets
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import ".."
 
 Scope {
   id: root
   property var theme: DefaultTheme {}
-  property string font: "Hack Nerd Font"
+  property string font: "JetBrainsMono Nerd Font"
   property int selectedIndex: -1
   property bool showPreview: false
   property int previewRevision: 0
-  // Tracks real mouse position to distinguish actual movement from list-scroll drift
-  property real lastGlobalMouseX: -1
-  property real lastGlobalMouseY: -1
+  // Tracks input mode: "keyboard" = mouse ignored, "mouse" = mouse active
+  property string _inputMode: "keyboard"
+  property real _lastMouseX: -1
+  property real _lastMouseY: -1
 
   // ── Data ──────────────────────────────────────────────────────────────────
   ListModel { id: entriesModel }
@@ -50,6 +52,7 @@ Scope {
     }
   }
 
+  // Shell safety: IDs are passed as positional $1 to sh -c, not interpolated
   Process {
     id: copyProc
     command: []
@@ -92,24 +95,25 @@ Scope {
     entriesModel.clear()
     selectedIndex = -1
     showPreview = false
+    _inputMode = "keyboard"
+    _lastMouseX = -1
+    _lastMouseY = -1
     listProc.running = true
   }
 
   function copyEntry(idx) {
     if (idx < 0 || idx >= entriesModel.count) return
-    const id = entriesModel.get(idx).id
-    copyProc.command = ["sh", "-c",
-      "cliphist decode '" + id.replace(/'/g, "'\\''") + "' | wl-copy || true"]
+    const entry = entriesModel.get(idx)
+    // $1 positional param — no shell injection
+    copyProc.command = ["sh", "-c", 'cliphist decode "$1" | wl-copy || true', "sh", entry.id]
     copyProc.running = true
   }
 
   function deleteEntry(idx) {
     if (idx < 0 || idx >= entriesModel.count || deleteProc.running) return
     const entry = entriesModel.get(idx)
-    const safeId = entry.id.replace(/'/g, "'\\''")
     deleteProc.pendingIndex = idx
-    deleteProc.command = ["sh", "-c",
-      "printf '%s\\t\\n' '" + safeId + "' | cliphist delete"]
+    deleteProc.command = ["sh", "-c", 'printf "%s\\t\\n" "$1" | cliphist delete', "sh", entry.id]
     deleteProc.running = true
   }
 
@@ -125,15 +129,22 @@ Scope {
     }
     showPreview = true
     if (!previewProc.running) {
-      const safeId = entry.id.replace(/'/g, "'\\''")
       previewProc.command = ["sh", "-c",
-        "cliphist decode '" + safeId + "' > /tmp/qs-clipboard-preview.png"]
+        'cliphist decode "$1" > /tmp/qs-clipboard-preview.png', "sh", entry.id]
       previewProc.running = true
     }
   }
 
-  onSelectedIndexChanged: updatePreview()
+  onSelectedIndexChanged: previewDebounce.restart()
   Component.onCompleted: refreshList()
+
+  // Debounce preview toggling — avoids rapid width animation glitching
+  // during keyboard navigation (200ms = matches box width animation duration)
+  Timer {
+    id: previewDebounce
+    interval: 200
+    onTriggered: updatePreview()
+  }
 
   // ── IPC ───────────────────────────────────────────────────────────────────
   IpcHandler {
@@ -186,18 +197,15 @@ Scope {
       }
 
       Keys.onPressed: event => {
+        root._inputMode = "keyboard"
         if (event.key === Qt.Key_Down) {
           event.accepted = true
-          if (listView.count > 0) {
+          if (listView.count > 0)
             root.selectedIndex = (root.selectedIndex + 1) % listView.count
-            listView.positionViewAtIndex(root.selectedIndex, ListView.Contain)
-          }
         } else if (event.key === Qt.Key_Up) {
           event.accepted = true
-          if (listView.count > 0) {
+          if (listView.count > 0)
             root.selectedIndex = (root.selectedIndex - 1 + listView.count) % listView.count
-            listView.positionViewAtIndex(root.selectedIndex, ListView.Contain)
-          }
         } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
           event.accepted = true
           root.copyEntry(root.selectedIndex)
@@ -205,6 +213,14 @@ Scope {
         } else if (event.key === Qt.Key_Delete) {
           event.accepted = true
           root.deleteEntry(root.selectedIndex)
+        } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+          event.accepted = true
+          if (listView.count > 0) {
+            if (event.key === Qt.Key_Backtab)
+              root.selectedIndex = (root.selectedIndex - 1 + listView.count) % listView.count
+            else
+              root.selectedIndex = (root.selectedIndex + 1) % listView.count
+          }
         } else if (event.key === Qt.Key_Escape) {
           event.accepted = true
           panel.visible = false
@@ -285,6 +301,11 @@ Scope {
               radius: 8
               color: "transparent"
 
+              Accessible.role: Accessible.ListItem
+              Accessible.name: delegateRoot.modelData.isImage
+                ? "Image clipboard entry " + (delegateRoot.index + 1)
+                : "Text clipboard entry: " + (delegateRoot.modelData.text || "").substring(0, 80)
+
               RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: 12
@@ -326,10 +347,27 @@ Scope {
                 onClicked: { root.copyEntry(delegateRoot.index); panel.visible = false }
                 onPositionChanged: mouse => {
                   const g = mapToGlobal(mouse.x, mouse.y)
-                  if (Math.abs(g.x - root.lastGlobalMouseX) < 1 &&
-                      Math.abs(g.y - root.lastGlobalMouseY) < 1) return
-                  root.lastGlobalMouseX = g.x
-                  root.lastGlobalMouseY = g.y
+                  if (root._inputMode === "keyboard") {
+                    // First position report after opening — just record, don't select
+                    if (root._lastMouseX < 0) {
+                      root._lastMouseX = g.x
+                      root._lastMouseY = g.y
+                      return
+                    }
+                    // Mouse moved (≥2px) → switch to mouse mode and select
+                    if (Math.abs(g.x - root._lastMouseX) >= 2 ||
+                        Math.abs(g.y - root._lastMouseY) >= 2) {
+                      root._inputMode = "mouse"
+                    } else {
+                      // Same position — Qt delegate-appeared-under-cursor quirk, ignore
+                      return
+                    }
+                  }
+                  // Mouse mode: update selection on movement
+                  if (Math.abs(g.x - root._lastMouseX) < 1 &&
+                      Math.abs(g.y - root._lastMouseY) < 1) return
+                  root._lastMouseX = g.x
+                  root._lastMouseY = g.y
                   root.selectedIndex = delegateRoot.index
                 }
               }
@@ -351,40 +389,38 @@ Scope {
             Layout.fillWidth: true
             spacing: 16
 
-            Row {
-              spacing: 4
-              Rectangle {
-                width: hk1.width + 8; height: 18; radius: 4; color: root.theme.bgSurface
-                Text { id: hk1; anchors.centerIn: parent; text: "↑↓"; color: root.theme.textMuted; font.pixelSize: 10; font.family: root.font }
-              }
-              Text { text: "navigate"; color: root.theme.textMuted; font.pixelSize: 10; font.family: root.font; anchors.verticalCenter: parent.verticalCenter }
-            }
+            Repeater {
+              model: [
+                { key: "↑↓",     label: "navigate" },
+                { key: "⏎",      label: "copy" },
+                { key: "Del",    label: "delete" },
+                { key: "Tab",    label: "next" },
+                { key: "⇧Tab",   label: "prev" },
+                { key: "Esc",    label: "close" }
+              ]
 
-            Row {
-              spacing: 4
-              Rectangle {
-                width: hk2.width + 8; height: 18; radius: 4; color: root.theme.bgSurface
-                Text { id: hk2; anchors.centerIn: parent; text: "⏎"; color: root.theme.textMuted; font.pixelSize: 10; font.family: root.font }
+              Row {
+                spacing: 4
+                Rectangle {
+                  width: hintKey.width + 8; height: 18; radius: 4
+                  color: root.theme.bgSurface
+                  Text {
+                    id: hintKey
+                    anchors.centerIn: parent
+                    text: modelData.key
+                    color: root.theme.textMuted
+                    font.pixelSize: 10
+                    font.family: root.font
+                  }
+                }
+                Text {
+                  text: modelData.label
+                  color: root.theme.textMuted
+                  font.pixelSize: 10
+                  font.family: root.font
+                  anchors.verticalCenter: parent.verticalCenter
+                }
               }
-              Text { text: "copy"; color: root.theme.textMuted; font.pixelSize: 10; font.family: root.font; anchors.verticalCenter: parent.verticalCenter }
-            }
-
-            Row {
-              spacing: 4
-              Rectangle {
-                width: hk3.width + 8; height: 18; radius: 4; color: root.theme.bgSurface
-                Text { id: hk3; anchors.centerIn: parent; text: "Del"; color: root.theme.textMuted; font.pixelSize: 10; font.family: root.font }
-              }
-              Text { text: "delete"; color: root.theme.textMuted; font.pixelSize: 10; font.family: root.font; anchors.verticalCenter: parent.verticalCenter }
-            }
-
-            Row {
-              spacing: 4
-              Rectangle {
-                width: hk4.width + 8; height: 18; radius: 4; color: root.theme.bgSurface
-                Text { id: hk4; anchors.centerIn: parent; text: "Esc"; color: root.theme.textMuted; font.pixelSize: 10; font.family: root.font }
-              }
-              Text { text: "close"; color: root.theme.textMuted; font.pixelSize: 10; font.family: root.font; anchors.verticalCenter: parent.verticalCenter }
             }
 
             Item { Layout.fillWidth: true }

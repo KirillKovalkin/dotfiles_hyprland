@@ -7,38 +7,27 @@ import QtQuick.Layouts
 Scope {
     id: root
     property var theme: Theme
-    property string font: "Hack Nerd Font"
+    property string font: "JetBrainsMono Nerd Font"
 
     IpcHandler {
         target: "theme"
 
-        // Switch to the wallpaper-generated theme. With an image path, regenerate
-        // the palette from that image first (see wallpaper-theme/set.sh); without
-        // one, just switch into wallpaper mode using the last generated palette.
-        function wallpaper(image: string): void {
-            root.theme.setWallpaperFromImage(image);
-        }
-
         function toggle(): void {
-            themePanel.visible = !themePanel.visible;
+            themePanel.visible = !themePanel.visible
             if (themePanel.visible) {
-                searchInput.text = "";
-                searchText = "";
-                selectedIndex = 0;
-                for (var i = 0; i < filteredThemes.length; i++) {
+                searchInput.text = ""
+                searchText = ""
+                selectedIndex = 0
+                for (let i = 0; i < filteredThemes.length; i++) {
                     if (filteredThemes[i].originalIndex === root.theme.currentIndex) {
-                        selectedIndex = i;
-                        break;
+                        selectedIndex = i
+                        break
                     }
                 }
-                if (root.theme.wallpaperMode) {
-                    paletteView.forceActiveFocus();
-                } else {
-                    themeList.positionViewAtIndex(selectedIndex, ListView.Center);
-                    searchInput.forceActiveFocus();
-                }
+                themeList.positionViewAtIndex(selectedIndex, ListView.Center)
+                searchInput.forceActiveFocus()
             } else {
-                root.theme.previewIndex = -1;
+                root.theme.previewIndex = -1
             }
         }
     }
@@ -47,21 +36,23 @@ Scope {
     property string searchText: ""
 
     onSelectedIndexChanged: {
-        if (themePanel.visible && !root.theme.wallpaperMode && filteredThemes.length > 0 && selectedIndex >= 0 && selectedIndex < filteredThemes.length) {
-            root.theme.previewIndex = filteredThemes[selectedIndex].originalIndex;
+        if (themePanel.visible && filteredThemes.length > 0
+            && selectedIndex >= 0 && selectedIndex < filteredThemes.length) {
+            root.theme.previewIndex = filteredThemes[selectedIndex].originalIndex
         }
     }
 
     property var filteredThemes: {
-        var query = searchText.toLowerCase();
-        var result = [];
-        for (var i = 0; i < root.theme.themes.length; i++) {
-            var t = root.theme.themes[i];
-            if (query === "" || t.name.toLowerCase().indexOf(query) >= 0 || t.family.toLowerCase().indexOf(query) >= 0) {
-                result.push({ data: t, originalIndex: i, family: t.family });
+        const query = searchText.toLowerCase()
+        const result = []
+        for (let i = 0; i < root.theme.themes.length; i++) {
+            const t = root.theme.themes[i]
+            if (query === "" || t.name.toLowerCase().indexOf(query) >= 0
+                || t.family.toLowerCase().indexOf(query) >= 0) {
+                result.push({ data: t, originalIndex: i, family: t.family })
             }
         }
-        return result;
+        return result
     }
 
     PanelWindow {
@@ -83,12 +74,11 @@ Scope {
             right: true
         }
 
-        // Dark overlay backdrop
         MouseArea {
             anchors.fill: parent
             onClicked: {
-                root.theme.previewIndex = -1;
-                themePanel.visible = false;
+                root.theme.previewIndex = -1
+                themePanel.visible = false
             }
 
             Rectangle {
@@ -97,7 +87,6 @@ Scope {
             }
         }
 
-        // Centered theme switcher box
         Rectangle {
             id: themeBox
             anchors.centerIn: parent
@@ -132,105 +121,13 @@ Scope {
                     }
 
                     Item { Layout.fillWidth: true }
-
-                    // Mode toggle: curated themes vs wallpaper-generated palette
-                    Rectangle {
-                        id: modeToggle
-                        visible: root.theme.wallpaperFeatureEnabled
-                        implicitWidth: modeRow.implicitWidth + 6
-                        implicitHeight: 26
-                        radius: 8
-                        color: root.theme.bgSurface
-                        border.color: root.theme.bgBorder
-                        border.width: 1
-
-                        Behavior on color { ColorAnimation { duration: 150 } }
-                        Behavior on border.color { ColorAnimation { duration: 150 } }
-
-                        RowLayout {
-                            id: modeRow
-                            anchors.fill: parent
-                            anchors.margins: 3
-                            spacing: 3
-
-                            // Curated themes segment
-                            Rectangle {
-                                Layout.fillHeight: true
-                                implicitWidth: themesLabel.implicitWidth + 20
-                                radius: 6
-                                color: !root.theme.wallpaperMode ? root.theme.bgSelected : "transparent"
-
-                                Behavior on color { ColorAnimation { duration: 150 } }
-
-                                Text {
-                                    id: themesLabel
-                                    anchors.centerIn: parent
-                                    verticalAlignment: Text.AlignVCenter
-                                    horizontalAlignment: Text.AlignHCenter
-                                    text: "Themes"
-                                    color: !root.theme.wallpaperMode ? root.theme.accentPrimary : root.theme.textMuted
-                                    font.pixelSize: 11
-                                    font.family: root.font
-                                    font.bold: !root.theme.wallpaperMode
-
-                                    Behavior on color { ColorAnimation { duration: 150 } }
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        root.theme.previewIndex = -1;
-                                        root.theme.setTheme(root.theme.currentIndex);
-                                        searchInput.forceActiveFocus();
-                                    }
-                                }
-                            }
-
-                            // Wallpaper segment
-                            Rectangle {
-                                Layout.fillHeight: true
-                                implicitWidth: wallpaperLabel.implicitWidth + 20
-                                radius: 6
-                                color: root.theme.wallpaperMode ? root.theme.bgSelected : "transparent"
-
-                                Behavior on color { ColorAnimation { duration: 150 } }
-
-                                Text {
-                                    id: wallpaperLabel
-                                    anchors.centerIn: parent
-                                    verticalAlignment: Text.AlignVCenter
-                                    horizontalAlignment: Text.AlignHCenter
-                                    text: "Wallpaper"
-                                    color: root.theme.wallpaperMode ? root.theme.accentPrimary : root.theme.textMuted
-                                    font.pixelSize: 11
-                                    font.family: root.font
-                                    font.bold: root.theme.wallpaperMode
-
-                                    Behavior on color { ColorAnimation { duration: 150 } }
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        root.theme.previewIndex = -1;
-                                        root.theme.setWallpaperMode();
-                                        paletteView.forceActiveFocus();
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
 
                 // Theme count
                 Text {
                     text: root.searchText !== ""
                         ? root.filteredThemes.length + " of " + root.theme.count + " themes"
-                        : root.theme.wallpaperMode
-                            ? "Colors generated from current wallpaper"
-                            : root.theme.count + " themes — " + root.theme.currentFamily + " " + root.theme.currentName
+                        : root.theme.count + " themes — " + root.theme.currentFamily + " " + root.theme.currentName
                     color: root.theme.textMuted
                     font.pixelSize: 11
                     font.family: root.font
@@ -243,7 +140,6 @@ Scope {
                     Layout.fillWidth: true
                     height: 36
                     radius: 8
-                    visible: !root.theme.wallpaperMode
                     color: root.theme.bgSurface
                     border.color: searchInput.activeFocus ? root.theme.accentPrimary : root.theme.bgBorder
                     border.width: 1
@@ -284,33 +180,30 @@ Scope {
                                 selectByMouse: true
 
                                 onTextChanged: {
-                                    root.searchText = text;
-                                    root.selectedIndex = 0;
+                                    root.searchText = text
+                                    root.selectedIndex = 0
                                 }
 
                                 Keys.onEscapePressed: {
-                                    root.theme.previewIndex = -1;
-                                    themePanel.visible = false;
+                                    root.theme.previewIndex = -1
+                                    themePanel.visible = false
                                 }
 
                                 Keys.onPressed: event => {
-                                    // No list to navigate in wallpaper mode.
-                                    if (root.theme.wallpaperMode)
-                                        return;
                                     if (event.key === Qt.Key_Down) {
-                                        event.accepted = true;
-                                        root.selectedIndex = Math.min(root.selectedIndex + 1, themeList.count - 1);
-                                        themeList.positionViewAtIndex(root.selectedIndex, ListView.Contain);
+                                        event.accepted = true
+                                        root.selectedIndex = Math.min(root.selectedIndex + 1, themeList.count - 1)
+                                        themeList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
                                     } else if (event.key === Qt.Key_Up) {
-                                        event.accepted = true;
-                                        root.selectedIndex = Math.max(root.selectedIndex - 1, 0);
-                                        themeList.positionViewAtIndex(root.selectedIndex, ListView.Contain);
+                                        event.accepted = true
+                                        root.selectedIndex = Math.max(root.selectedIndex - 1, 0)
+                                        themeList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
                                     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                                        event.accepted = true;
+                                        event.accepted = true
                                         if (root.filteredThemes.length > 0) {
-                                            root.theme.previewIndex = -1;
-                                            root.theme.setTheme(root.filteredThemes[root.selectedIndex].originalIndex);
-                                            themePanel.visible = false;
+                                            root.theme.previewIndex = -1
+                                            root.theme.setTheme(root.filteredThemes[root.selectedIndex].originalIndex)
+                                            themePanel.visible = false
                                         }
                                     }
                                 }
@@ -342,8 +235,8 @@ Scope {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    searchInput.text = "";
-                                    searchInput.forceActiveFocus();
+                                    searchInput.text = ""
+                                    searchInput.forceActiveFocus()
                                 }
                             }
                         }
@@ -355,7 +248,6 @@ Scope {
                     id: themeList
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    visible: !root.theme.wallpaperMode
                     model: root.filteredThemes
                     clip: true
                     spacing: 2
@@ -412,7 +304,8 @@ Scope {
                         width: themeList.width
                         height: 44
                         radius: 8
-                        color: hoverArea.containsMouse && root.selectedIndex !== index ? root.theme.bgHover : "transparent"
+                        color: hoverArea.containsMouse && root.selectedIndex !== index
+                            ? root.theme.bgHover : "transparent"
 
                         Behavior on color { ColorAnimation { duration: 100 } }
 
@@ -422,10 +315,10 @@ Scope {
                             anchors.rightMargin: 14
                             spacing: 10
 
-                            // Theme name
                             Text {
                                 text: delegateRoot.modelData.data.name
-                                color: root.selectedIndex === delegateRoot.index ? root.theme.textPrimary : root.theme.textSecondary
+                                color: root.selectedIndex === delegateRoot.index
+                                    ? root.theme.textPrimary : root.theme.textSecondary
                                 font.pixelSize: 13
                                 font.family: root.font
                                 font.bold: root.selectedIndex === delegateRoot.index
@@ -467,7 +360,7 @@ Scope {
                                 color: root.theme.accentGreen
                                 font.pixelSize: 14
                                 font.family: root.font
-                                visible: !root.theme.wallpaperMode && root.theme.currentIndex === delegateRoot.modelData.originalIndex
+                                visible: root.theme.currentIndex === delegateRoot.modelData.originalIndex
                                 Layout.alignment: Qt.AlignVCenter
 
                                 Behavior on color { ColorAnimation { duration: 150 } }
@@ -480,9 +373,9 @@ Scope {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                root.theme.previewIndex = -1;
-                                root.theme.setTheme(delegateRoot.modelData.originalIndex);
-                                themePanel.visible = false;
+                                root.theme.previewIndex = -1
+                                root.theme.setTheme(delegateRoot.modelData.originalIndex)
+                                themePanel.visible = false
                             }
                             onEntered: root.selectedIndex = delegateRoot.index
                         }
@@ -501,110 +394,6 @@ Scope {
                     }
                 }
 
-                // Wallpaper palette display — replaces the list when in wallpaper mode
-                Flickable {
-                    id: paletteView
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    visible: root.theme.wallpaperMode
-                    clip: true
-                    contentHeight: paletteFlow.implicitHeight
-                    boundsBehavior: Flickable.StopAtBounds
-
-                    // Holds keyboard focus in wallpaper mode so Escape still closes.
-                    Keys.onEscapePressed: {
-                        root.theme.previewIndex = -1;
-                        themePanel.visible = false;
-                    }
-
-                    Flow {
-                        id: paletteFlow
-                        width: paletteView.width
-                        spacing: 8
-
-                        Repeater {
-                            model: [
-                                { label: "Base",      key: "bgBase" },
-                                { label: "Surface",   key: "bgSurface" },
-                                { label: "Hover",     key: "bgHover" },
-                                { label: "Selected",  key: "bgSelected" },
-                                { label: "Border",    key: "bgBorder" },
-                                { label: "Text",      key: "textPrimary" },
-                                { label: "Secondary", key: "textSecondary" },
-                                { label: "Muted",     key: "textMuted" },
-                                { label: "Primary",   key: "accentPrimary" },
-                                { label: "Cyan",      key: "accentCyan" },
-                                { label: "Green",     key: "accentGreen" },
-                                { label: "Orange",    key: "accentOrange" },
-                                { label: "Red",       key: "accentRed" }
-                            ]
-
-                            Rectangle {
-                                id: swatchTile
-                                required property var modelData
-                                readonly property string hex: root.theme.wallpaperTheme[modelData.key] || "#000000"
-
-                                width: (paletteFlow.width - paletteFlow.spacing * 2) / 3
-                                height: 72
-                                radius: 8
-                                color: root.theme.bgSurface
-                                border.color: root.theme.bgBorder
-                                border.width: 1
-
-                                Behavior on color { ColorAnimation { duration: 150 } }
-                                Behavior on border.color { ColorAnimation { duration: 150 } }
-
-                                RowLayout {
-                                    anchors.fill: parent
-                                    anchors.margins: 10
-                                    spacing: 10
-
-                                    Rectangle {
-                                        Layout.preferredWidth: 44
-                                        Layout.preferredHeight: 44
-                                        Layout.alignment: Qt.AlignVCenter
-                                        radius: 6
-                                        color: swatchTile.hex
-                                        border.color: root.theme.bgBorder
-                                        border.width: 1
-
-                                        Behavior on color { ColorAnimation { duration: 150 } }
-                                    }
-
-                                    ColumnLayout {
-                                        Layout.fillWidth: true
-                                        Layout.alignment: Qt.AlignVCenter
-                                        spacing: 2
-
-                                        Text {
-                                            text: swatchTile.modelData.label
-                                            color: root.theme.textPrimary
-                                            font.pixelSize: 12
-                                            font.family: root.font
-                                            font.bold: true
-                                            elide: Text.ElideRight
-                                            Layout.fillWidth: true
-
-                                            Behavior on color { ColorAnimation { duration: 150 } }
-                                        }
-
-                                        Text {
-                                            text: swatchTile.hex.toUpperCase()
-                                            color: root.theme.textMuted
-                                            font.pixelSize: 11
-                                            font.family: root.font
-                                            elide: Text.ElideRight
-                                            Layout.fillWidth: true
-
-                                            Behavior on color { ColorAnimation { duration: 150 } }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
                 // Footer hints
                 RowLayout {
                     Layout.fillWidth: true
@@ -612,7 +401,6 @@ Scope {
 
                     Row {
                         spacing: 4
-                        visible: !root.theme.wallpaperMode
                         Rectangle {
                             width: hintNav.width + 8; height: 18; radius: 4; color: root.theme.bgSurface
                             Behavior on color { ColorAnimation { duration: 150 } }
@@ -623,7 +411,6 @@ Scope {
 
                     Row {
                         spacing: 4
-                        visible: !root.theme.wallpaperMode
                         Rectangle {
                             width: hintEnter.width + 8; height: 18; radius: 4; color: root.theme.bgSurface
                             Behavior on color { ColorAnimation { duration: 150 } }

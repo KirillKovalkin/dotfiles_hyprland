@@ -5,11 +5,12 @@ import Quickshell.Io
 import Quickshell.Services.Notifications
 import QtQuick
 import QtQuick.Layouts
+import ".."
 
 Scope {
     id: root
     property var theme: DefaultTheme {}
-    property string font: "Hack Nerd Font"
+    property string font: "JetBrainsMono Nerd Font"
 
     IpcHandler {
         target: "notifications"
@@ -292,23 +293,25 @@ Scope {
 
                                 Rectangle {
                                     id: progressBar
+                                    anchors.left: parent.left
                                     height: parent.height
                                     width: parent.width
                                     radius: 1
                                     color: notifCard.modelData.urgency === NotificationUrgency.Critical
                                            ? root.theme.urgencyCritical : root.theme.urgencyNormal
                                     opacity: 0.6
+                                    transformOrigin: Item.Left
 
                                     SequentialAnimation {
                                         running: notifCard.modelData.urgency !== NotificationUrgency.Critical
                                         PauseAnimation { duration: 50 }
                                         NumberAnimation {
                                             target: progressBar
-                                            property: "width"
+                                            property: "scale"
                                             to: 0
                                             duration: notifCard.modelData.expireTimeout > 0
                                                       ? notifCard.modelData.expireTimeout
-                                                      : notifCard.modelData.defaultTimeout  // no * 1000: matches the timer — Quickshell passes raw D-Bus ms
+                                                      : notifCard.modelData.defaultTimeout
                                         }
                                     }
                                 }

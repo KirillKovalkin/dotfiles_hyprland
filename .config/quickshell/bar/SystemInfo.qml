@@ -3,6 +3,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.UPower
+import Quickshell.Services.Pipewire
 import Quickshell.Hyprland
 import QtQuick
 
@@ -21,53 +22,118 @@ Singleton {
   property string gpuTemperature: "N/A"
   property string keyboardLayout: "??"
 
-  // CPU Usage
+  // Battery semantic status — used by Bar.qml for color mapping
+  readonly property string batteryStatus: {
+    if (!batteryAvailable) return "none";
+    if (batteryCharging) return "charging";
+    if (batteryLevelRaw > 20) return "good";
+    if (batteryLevelRaw > 10) return "warning";
+    return "critical";
+  }
+
+  // Shared volume icon — pure function, used by Bar + OSD
+  function volumeIcon(volume, muted) {
+    if (muted || volume <= 0) return "󰖁";
+    if (volume < 0.33) return "󰕿";
+    if (volume < 0.66) return "󰖀";
+    return "󰕾";
+  }
+
+  // ── Brightness (shared with Bar + OSD) ───────────────────────────────────
+  property real brightnessValue: 0
+  readonly property bool brightnessAvailable: brightnessFile.path !== ""
+  property bool brightnessReady: false
+
+  FileView {
+    id: brightnessFile
+    path: ""
+    watchChanges: true
+    onFileChanged: brightnessReadProc.running = true
+  }
+
+  Process {
+    id: brightnessReadProc
+    command: ["brightnessctl", "get"]
+    running: false
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const val = parseInt(text.trim());
+        if (!isNaN(val) && root.brightnessMax > 0) {
+          root.brightnessValue = val / root.brightnessMax;
+          root.brightnessReady = true;
+        }
+      }
+    }
+  }
+
+  property real brightnessMax: 1
+
+  Process {
+    id: backlightDiscovery
+    command: ["sh", "-c", "p=$(ls -d /sys/class/backlight/*/brightness 2>/dev/null | head -1); [ -n \"$p\" ] && echo \"$p\" && cat \"${p%brightness}max_brightness\""]
+    running: true
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const lines = text.trim().split("\n");
+        if (lines.length >= 2) {
+          const max = parseInt(lines[1]);
+          if (!isNaN(max) && max > 0) root.brightnessMax = max;
+          brightnessFile.path = lines[0];
+          brightnessReadProc.running = true;
+        }
+      }
+    }
+  }
+
+  // ── CPU (reads /proc/stat via pipe — POSIX sh compatible) ───────────────
   Process {
     id: cpuProc
-    command: ["sh", "-c", "top -bn1 | grep 'Cpu(s)' | sed 's/.*, *\\([0-9.]*\\)%* id.*/\\1/' | awk '{print 100 - $1\"%\"}'"]
+    command: ["sh", "-c",
+      "{ head -1 /proc/stat; sleep 0.2; head -1 /proc/stat; } | awk 'NR==1{u=$2+$4;t=$2+$3+$4+$5;i=$5} NR==2{u2=$2+$4;t2=$2+$3+$4+$5;i2=$5; printf \"%.0f%%\", (1-(i2-i)/(t2-t))*100}'"]
     running: true
-
     stdout: StdioCollector {
-      onStreamFinished: {
-        root.cpuUsage = text.trim()
-      }
+      onStreamFinished: { root.cpuUsage = text.trim() }
     }
   }
 
-  // Temperature — Intel (Package id 0) and AMD (Tctl/Tdie)
+  Timer {
+    interval: 3000
+    running: true
+    repeat: true
+    onTriggered: { cpuProc.running = true }
+  }
+
+  // ── Temperature (CPU + GPU in one sensors call) ──────────────────────────
   Process {
     id: tempProc
-    command: ["sh", "-c", "sensors 2>/dev/null | awk '/Package id 0:/{gsub(/\\+/,\"\"); printf \"%.0f\", $4; exit} /Tctl:/{gsub(/\\+/,\"\"); printf \"%.0f\", $2; exit} /Tdie:/{gsub(/\\+/,\"\"); printf \"%.0f\", $2; exit}'"]
+    command: ["sh", "-c",
+      "sensors 2>/dev/null | awk '/^edge:/{gsub(/\\+/,\"\"); gpu=int($2); hasGpu=1} /Package id 0:/{gsub(/\\+/,\"\"); cpu=int($4); hasCpu=1} /Tctl:/{gsub(/\\+/,\"\"); if(!hasCpu){cpu=int($2); hasCpu=1}} /Tdie:/{gsub(/\\+/,\"\"); if(!hasCpu){cpu=int($2); hasCpu=1}} END{printf \"cpu:%s\\ngpu:%s\\n\", hasCpu?cpu\"°C\":\"N/A\", hasGpu?gpu\"°C\":\"N/A\"}'"]
     running: true
-
     stdout: StdioCollector {
       onStreamFinished: {
-        const val = text.trim()
-        root.temperature = val ? val + "°C" : "N/A"
+        const lines = text.trim().split("\n")
+        for (let i = 0; i < lines.length; i++) {
+          const parts = lines[i].split(":")
+          if (parts[0] === "cpu") root.temperature = parts[1]
+          if (parts[0] === "gpu") root.gpuTemperature = parts[1]
+        }
       }
     }
   }
 
-  // GPU Temperature — AMD (edge)
-  Process {
-    id: gpuTempProc
-    command: ["sh", "-c", "sensors 2>/dev/null | awk '/^edge:/{gsub(/\\+/,\"\"); printf \"%.0f\", $2; exit}'"]
+  Timer {
+    interval: 5000
     running: true
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const val = text.trim()
-        root.gpuTemperature = val ? val + "°C" : "N/A"
-      }
-    }
+    repeat: true
+    onTriggered: { tempProc.running = true }
   }
 
-  // Initial keyboard layout — first keyboard with active_keymap
+  // ── Keyboard layout (event-driven via Hyprland IPC) ──────────────────────
   Process {
     id: kbInitProc
-    command: ["sh", "-c", "hyprctl devices | awk '/Keyboard/{found=1} found && /active keymap:/{sub(/.*active keymap: /,\"\"); sub(/ *\\(.*/,\"\"); print; exit}'"]
+    command: ["sh", "-c",
+      "hyprctl devices | awk '/Keyboard/{found=1} found && /active keymap:/{sub(/.*active keymap: /,\"\"); sub(/ *\\(.*/,\"\"); print; exit}'"]
     running: true
-
     stdout: StdioCollector {
       onStreamFinished: {
         const val = text.trim()
@@ -76,7 +142,6 @@ Singleton {
     }
   }
 
-  // Instant layout updates via Hyprland IPC socket2 events
   Connections {
     target: Hyprland
     function onRawEvent(event) {
@@ -90,70 +155,88 @@ Singleton {
     }
   }
 
-  // Network — /sys/class/net/ based, no nmcli required
+  // ── Network (event-driven via FileView, tab-separated, colon-safe) ──────
   Process {
     id: netProc
-    command: ["sh", "-c", "for iface in /sys/class/net/*; do name=$(basename \"$iface\"); [ \"$name\" = lo ] && continue; oper=$(cat \"$iface/operstate\" 2>/dev/null); [ \"$oper\" != up ] && continue; carrier=$(cat \"$iface/carrier\" 2>/dev/null); [ \"$carrier\" != 1 ] && continue; if [ -d \"$iface/wireless\" ] || [ -d \"$iface/phy80211\" ]; then ssid=$(iwgetid \"$name\" -r 2>/dev/null || iw dev \"$name\" link 2>/dev/null | awk -F': ' '/SSID/{print $2}'); echo \"wifi:${ssid:-WiFi}\"; else echo \"ethernet:Ethernet\"; fi; exit; done; echo 'disconnected:'"]
+    command: ["sh", "-c",
+      "for iface in /sys/class/net/*; do name=$(basename \"$iface\"); [ \"$name\" = lo ] && continue; oper=$(cat \"$iface/operstate\" 2>/dev/null); [ \"$oper\" != up ] && continue; carrier=$(cat \"$iface/carrier\" 2>/dev/null); [ \"$carrier\" != 1 ] && continue; if [ -d \"$iface/wireless\" ] || [ -d \"$iface/phy80211\" ]; then ssid=$(iwgetid \"$name\" -r 2>/dev/null || iw dev \"$name\" link 2>/dev/null | awk -F': ' '/SSID/{print $2}'); printf 'wifi\t%s\t%s\n' \"${ssid:-WiFi}\" \"$name\"; else printf 'ethernet\tEthernet\t%s\n' \"$name\"; fi; exit; done; printf 'disconnected\t\t\n'"]
     running: true
-
     stdout: StdioCollector {
       onStreamFinished: {
         const result = text.trim()
-        const colonIdx = result.indexOf(":")
-        root.networkType = result.substring(0, colonIdx)
-        root.networkInfo = result.substring(colonIdx + 1) || "Disconnected"
+        const parts = result.split("\t")
+        root.networkType = parts[0]
+        root.networkInfo = parts[1] || "Disconnected"
+        // Watch operstate of the active interface for instant connect/disconnect detection
+        const iface = parts[2]
+        netWatcher.path = iface ? "/sys/class/net/" + iface + "/operstate" : ""
       }
     }
   }
 
-  // Periodic update timer
+  // React instantly to interface link up/down
+  FileView {
+    id: netWatcher
+    path: ""
+    watchChanges: true
+    onFileChanged: { if (path !== "") netProc.running = true }
+  }
+
+  // Polling fallback — only when disconnected, to detect new connections
   Timer {
-    interval: 2000
-    running: true
+    interval: 5000
+    running: root.networkType === "disconnected"
     repeat: true
-    onTriggered: {
-      cpuProc.running = true
-      tempProc.running = true
-      gpuTempProc.running = true
-      netProc.running = true
-      updateBattery()
-    }
+    onTriggered: { netProc.running = true }
   }
 
-  function updateBattery() {
-    let hasBattery = false
-    const devices = UPower.devices
-    for (let i = 0; i < devices.length; i++) {
-      if (devices[i].isLaptopBattery) {
-        hasBattery = true
-        break
+  // ── Battery (event-driven via UPower D-Bus, no polling on desktops) ──────
+  function _updateBatteryIcon() {
+    if (root.batteryCharging) { root.batteryIcon = ""; return; }
+    const lvl = root.batteryLevelRaw;
+    if (lvl >= 90) root.batteryIcon = "󰁹";
+    else if (lvl >= 80) root.batteryIcon = "󰂂";
+    else if (lvl >= 70) root.batteryIcon = "󰂁";
+    else if (lvl >= 60) root.batteryIcon = "󰂀";
+    else if (lvl >= 50) root.batteryIcon = "󰁿";
+    else if (lvl >= 40) root.batteryIcon = "󰁾";
+    else if (lvl >= 30) root.batteryIcon = "󰁽";
+    else if (lvl >= 20) root.batteryIcon = "󰁼";
+    else if (lvl >= 10) root.batteryIcon = "󰁻";
+    else root.batteryIcon = "󰁺";
+  }
+
+  function _syncBattery() {
+    const dd = UPower.displayDevice;
+    if (!dd || !dd.ready) return;
+    root.batteryLevelRaw = Math.round(dd.percentage);
+    root.batteryLevel = root.batteryLevelRaw + "%";
+    root.batteryCharging = dd.state === UPowerDeviceState.Charging;
+    _updateBatteryIcon();
+  }
+
+  function _checkBatteryAvailable() {
+    const devs = UPower.devices.values;
+    for (let i = 0; i < devs.length; i++) {
+      if (devs[i].isLaptopBattery) {
+        root.batteryAvailable = true;
+        _syncBattery();
+        return;
       }
     }
-    root.batteryAvailable = hasBattery
+    root.batteryAvailable = false;
+  }
 
-    if (!hasBattery) return
-
-    const dd = UPower.displayDevice
-    if (dd && dd.ready) {
-      root.batteryLevelRaw = Math.round(dd.percentage)
-      root.batteryLevel = root.batteryLevelRaw + "%"
-      root.batteryCharging = dd.state === UPowerDeviceState.Charging
-
-      if (root.batteryCharging) root.batteryIcon = ""
-      else if (root.batteryLevelRaw >= 90) root.batteryIcon = "󰁹"
-      else if (root.batteryLevelRaw >= 80) root.batteryIcon = "󰂂"
-      else if (root.batteryLevelRaw >= 70) root.batteryIcon = "󰂁"
-      else if (root.batteryLevelRaw >= 60) root.batteryIcon = "󰂀"
-      else if (root.batteryLevelRaw >= 50) root.batteryIcon = "󰁿"
-      else if (root.batteryLevelRaw >= 40) root.batteryIcon = "󰁾"
-      else if (root.batteryLevelRaw >= 30) root.batteryIcon = "󰁽"
-      else if (root.batteryLevelRaw >= 20) root.batteryIcon = "󰁼"
-      else if (root.batteryLevelRaw >= 10) root.batteryIcon = "󰁻"
-      else root.batteryIcon = "󰁺"
-    }
+  // React to battery changes (laptops only — batteryAvailable guards execution)
+  Connections {
+    target: UPower.displayDevice
+    function onPercentageChanged() { if (root.batteryAvailable) root._syncBattery() }
+    function onStateChanged()      { if (root.batteryAvailable) root._syncBattery() }
   }
 
   Component.onCompleted: {
-    updateBattery()
+    // Check battery once at startup. On desktops this sets batteryAvailable=false
+    // and no further battery work is ever done.
+    root._checkBatteryAvailable();
   }
 }

@@ -6,6 +6,7 @@ QtObject {
 
     property Notification notification: null
     property bool closed: false
+    property bool _destroyed: false
 
     property string seqId: ""
     property string notifId: ""
@@ -90,15 +91,16 @@ QtObject {
     }
 
     function dismiss(): void {
-        if (closed) return;
+        if (closed || _destroyed) return;
         closed = true;
         NotificationService._remove(notificationData);
         if (notification) try { notification.dismiss(); } catch(e) {}
+        _destroyed = true;
         destroy();
     }
 
     function invokeAction(identifier): void {
-        if (!identifier || closed) return;
+        if (!identifier || closed || _destroyed) return;
         closed = true;
         NotificationService._remove(notificationData);
         if (notification) {
@@ -107,6 +109,7 @@ QtObject {
             });
             if (action) try { action.invoke(); } catch(e) {}
         }
+        _destroyed = true;
         destroy();
     }
 }

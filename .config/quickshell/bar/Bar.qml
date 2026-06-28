@@ -7,6 +7,7 @@ import Quickshell.Services.SystemTray
 import Quickshell.Io
 import Quickshell.Services.Mpris
 import Quickshell.Services.Pipewire
+import ".."
 Scope {
   id: root
   property var theme: DefaultTheme {}
@@ -32,50 +33,17 @@ Scope {
     objects: [Pipewire.defaultAudioSink]
   }
 
-  // Brightness state
-  property real brightnessValue: 0
-  property real brightnessMax: 1
-
-  FileView {
-    id: brightnessFile
-    path: ""
-    watchChanges: true
-    onFileChanged: brightnessReadProc.running = true
-  }
-
-  Process {
-    id: brightnessReadProc
-    command: ["brightnessctl", "get"]
-    running: false
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const val = parseInt(text.trim());
-        if (!isNaN(val) && root.brightnessMax > 0)
-          root.brightnessValue = val / root.brightnessMax;
-      }
-    }
-  }
-
+  // Brightness set (values read from SystemInfo singleton)
   Process {
     id: brightnessSetProc
     running: false
   }
 
+  // Keyboard layout switching (hyprctl — works in Lua mode)
   Process {
-    id: backlightDiscovery
-    command: ["sh", "-c", "p=$(ls -d /sys/class/backlight/*/brightness 2>/dev/null | head -1); [ -n \"$p\" ] && echo \"$p\" && cat \"${p%brightness}max_brightness\""]
-    running: true
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const lines = text.trim().split("\n");
-        if (lines.length >= 2) {
-          const max = parseInt(lines[1]);
-          if (!isNaN(max) && max > 0) root.brightnessMax = max;
-          brightnessFile.path = lines[0];
-          brightnessReadProc.running = true;
-        }
-      }
-    }
+    id: kbSwitchProc
+    command: ["hyprctl", "switchxkblayout", "all", "next"]
+    running: false
   }
 
   Variants {
@@ -155,6 +123,7 @@ Scope {
 
                 MouseArea {
                   anchors.fill: parent
+                  cursorShape: Qt.PointingHandCursor
                   onClicked: wsPill.modelData.activate()
                 }
 
@@ -278,6 +247,12 @@ Scope {
                 font.family: root.font
               }
             }
+
+            MouseArea {
+              anchors.fill: parent
+              cursorShape: Qt.PointingHandCursor
+              onClicked: kbSwitchProc.running = true
+            }
           }
 
           // System Tray
@@ -393,7 +368,7 @@ Scope {
             radius: 12
             color: root.theme.bgSurface
 
-            Accessible.role: Accessible.StaticText
+            Accessible.role: Accessible.Button
             Accessible.name: {
               const sink = Pipewire.defaultAudioSink;
               if (!sink || !sink.audio) return "Volume";
@@ -409,11 +384,8 @@ Scope {
               Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: {
-                  const sink = Pipewire.defaultAudioSink;
-                  if (!sink || !sink.audio || sink.audio.muted || sink.audio.volume <= 0) return "󰖁";
-                  if (sink.audio.volume < 0.33) return "󰕿";
-                  if (sink.audio.volume < 0.66) return "󰖀";
-                  return "󰕾";
+                  const s = Pipewire.defaultAudioSink;
+                  return SystemInfo.volumeIcon(s?.audio?.volume ?? 0, s?.audio?.muted ?? true);
                 }
                 color: {
                   const sink = Pipewire.defaultAudioSink;
@@ -438,6 +410,15 @@ Scope {
               }
             }
 
+            MouseArea {
+              anchors.fill: parent
+              cursorShape: Qt.PointingHandCursor
+              onClicked: {
+                const sink = Pipewire.defaultAudioSink;
+                if (sink && sink.audio) sink.audio.muted = !sink.audio.muted;
+              }
+            }
+
           }
 
           // Brightness
@@ -446,10 +427,10 @@ Scope {
             width: brightContent.width + 12
             radius: 12
             color: root.theme.bgSurface
-            visible: brightnessFile.path !== ""
+            visible: SystemInfo.brightnessAvailable
 
             Accessible.role: Accessible.StaticText
-            Accessible.name: "Brightness: " + Math.round(root.brightnessValue * 100) + "%"
+            Accessible.name: "Brightness: " + Math.round(SystemInfo.brightnessValue * 100) + "%"
 
             Row {
               id: brightContent
@@ -466,7 +447,7 @@ Scope {
 
               Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: Math.round(root.brightnessValue * 100) + "%"
+                text: Math.round(SystemInfo.brightnessValue * 100) + "%"
                 color: root.theme.textPrimary
                 font.pixelSize: 12
                 font.family: root.font
@@ -490,10 +471,12 @@ Scope {
             id: sysInfo
 
             readonly property color batteryColor: {
-              if (SystemInfo.batteryCharging) return root.theme.accentGreen;
-              if (SystemInfo.batteryLevelRaw > 20) return root.theme.batteryGood;
-              if (SystemInfo.batteryLevelRaw > 10) return root.theme.batteryWarning;
-              return root.theme.batteryCritical;
+              switch (SystemInfo.batteryStatus) {
+                case "charging": return root.theme.accentGreen;
+                case "good": return root.theme.batteryGood;
+                case "warning": return root.theme.batteryWarning;
+                default: return root.theme.batteryCritical;
+              }
             }
 
             spacing: 4

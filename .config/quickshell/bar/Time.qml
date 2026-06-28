@@ -29,10 +29,6 @@ Singleton {
     return Math.ceil(((date - yearStart) / 86400000 + 1) / 7)
   }
 
-  // Legacy bindings — kept for any external consumers, now point to new format
-  readonly property string timeString: simpleTimeString
-  readonly property string dateString: ""
-
   SystemClock {
     id: clock
     precision: SystemClock.Seconds
