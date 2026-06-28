@@ -7,16 +7,22 @@ import Quickshell.Services.SystemTray
 import Quickshell.Io
 import Quickshell.Services.Mpris
 import Quickshell.Services.Pipewire
-import ".."
+import "../themeswitcher"
 Scope {
   id: root
-  property var theme: DefaultTheme {}
+  property var theme: Theme
   property string font: "JetBrainsMono Nerd Font"
   property bool barVisible: true
 
-  // MPRIS active player
+  // MPRIS active player — reactive via ScriptModel
+  ScriptModel {
+    id: mprisModel
+    values: Mpris.players.values
+    objectProp: "identity"
+  }
+
   property var activePlayer: {
-    const players = Mpris.players.values;
+    const players = mprisModel.values;
     if (!players || players.length === 0) return null;
     for (const p of players) {
       if (p.playbackState === MprisPlaybackState.Playing) return p;
@@ -27,10 +33,6 @@ Scope {
   IpcHandler {
     target: "bar"
     function toggle(): void { root.barVisible = !root.barVisible; }
-  }
-
-  PwObjectTracker {
-    objects: [Pipewire.defaultAudioSink]
   }
 
   // Brightness set (values read from SystemInfo singleton)
@@ -159,7 +161,7 @@ Scope {
 
               Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: root.activePlayer && root.activePlayer.isPlaying ? "󰐊" : "󰏤"
+                text: root.activePlayer && root.activePlayer.isPlaying ? "󰏤" : "󰐊"
                 color: root.theme.accentPrimary
                 font.pixelSize: 14
                 font.family: root.font

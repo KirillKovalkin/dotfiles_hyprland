@@ -10,6 +10,11 @@ import QtQuick
 Singleton {
   id: root
 
+  // Single PwObjectTracker for the whole shell
+  PwObjectTracker {
+    objects: [Pipewire.defaultAudioSink]
+  }
+
   property string cpuUsage: "0%"
   property string networkInfo: "Disconnected"
   property string networkType: "disconnected"

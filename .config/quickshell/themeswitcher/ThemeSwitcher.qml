@@ -154,7 +154,7 @@ Scope {
                         spacing: 8
 
                         Text {
-                            text: ""
+                            text: "󰍉"
                             color: root.theme.textMuted
                             font.pixelSize: 13
                             font.family: root.font

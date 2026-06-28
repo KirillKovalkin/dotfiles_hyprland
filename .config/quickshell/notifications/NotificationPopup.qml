@@ -5,11 +5,11 @@ import Quickshell.Io
 import Quickshell.Services.Notifications
 import QtQuick
 import QtQuick.Layouts
-import ".."
+import "../themeswitcher"
 
 Scope {
     id: root
-    property var theme: DefaultTheme {}
+    property var theme: Theme
     property string font: "JetBrainsMono Nerd Font"
 
     IpcHandler {

@@ -31,7 +31,7 @@ Singleton {
     readonly property color bgHover:      current.bgHover
     readonly property color bgSelected:   current.bgSelected
     readonly property color bgBorder:     current.bgBorder
-    readonly property color bgOverlay:    "#88000000"
+    readonly property color bgOverlay:    isDark ? "#88000000" : "#88ffffff"
 
     readonly property color textPrimary:   current.textPrimary
     readonly property color textSecondary: current.textSecondary

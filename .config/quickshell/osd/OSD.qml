@@ -4,23 +4,18 @@ import Quickshell.Wayland
 import Quickshell.Services.Pipewire
 import QtQuick
 import QtQuick.Layouts
-import ".."
 import "../bar"
+import "../themeswitcher"
 
 Scope {
   id: root
-  property var theme: DefaultTheme {}
+  property var theme: Theme
   property string font: "JetBrainsMono Nerd Font"
 
   property bool showVolume: false
   property bool showBrightness: false
   property real volumeValue: 0
   property bool volumeMuted: false
-
-  // PipeWire tracking
-  PwObjectTracker {
-    objects: [Pipewire.defaultAudioSink]
-  }
 
   Connections {
     target: Pipewire.defaultAudioSink?.audio ?? null

@@ -5,11 +5,11 @@ import Quickshell.Widgets
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import ".."
+import "../themeswitcher"
 
 Scope {
   id: root
-  property var theme: DefaultTheme {}
+  property var theme: Theme
   property string font: "JetBrainsMono Nerd Font"
   property int selectedIndex: -1
   property bool showPreview: false

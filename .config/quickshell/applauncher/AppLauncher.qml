@@ -5,11 +5,11 @@ import Quickshell.Widgets
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import ".."
+import "../themeswitcher"
 
 Scope {
   id: root
-  property var theme: DefaultTheme {}
+  property var theme: Theme
   property string font: "JetBrainsMono Nerd Font"
 
   IpcHandler {
@@ -131,7 +131,7 @@ Scope {
             spacing: 10
 
             Text {
-              text: ""
+              text: "󰍉"
               color: root.theme.textMuted
               font.pixelSize: 16
               font.family: root.font

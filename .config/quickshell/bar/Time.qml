@@ -23,9 +23,9 @@ Singleton {
   }
 
   function isoWeek(d) {
-    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
-    date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7))
-    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+    const date = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    date.setDate(date.getDate() + 4 - (date.getDay() || 7))
+    const yearStart = new Date(date.getFullYear(), 0, 1)
     return Math.ceil(((date - yearStart) / 86400000 + 1) / 7)
   }
 
