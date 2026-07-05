@@ -1,5 +1,6 @@
 import Quickshell
 import QtQuick
+import Quickshell.Hyprland
 import Quickshell.Io
 import "../themeswitcher"
 
@@ -9,6 +10,27 @@ Scope {
 
   // ── Bar visibility toggle (IPC) ──────────────────────────────────────────
   property bool barVisible: true
+
+  // Hide bar on this output while its active workspace has a fullscreen client.
+  // Matches hypr/monitors.lua — DP-1 is the 240 Hz primary/gaming monitor.
+  readonly property string autoHideOutput: "DP-1"
+
+  readonly property bool primaryFullscreenActive: {
+    for (const m of Hyprland.monitors.values) {
+      if (m.name === root.autoHideOutput)
+        return m.activeWorkspace?.hasFullscreen ?? false
+    }
+    return false
+  }
+
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (event.name === "fullscreen" || event.name === "workspace"
+          || event.name === "openwindow" || event.name === "closewindow")
+        Hyprland.refreshWorkspaces()
+    }
+  }
 
   IpcHandler {
     target: "bar"
@@ -24,7 +46,12 @@ Scope {
     PanelWindow {
       required property var modelData
       screen: modelData
-      visible: root.barVisible
+
+      readonly property var hyprMonitor: Hyprland.monitorFor(modelData)
+      readonly property bool hideForFullscreen:
+        hyprMonitor?.name === root.autoHideOutput && root.primaryFullscreenActive
+
+      visible: root.barVisible && !hideForFullscreen
 
       anchors {
         top: true

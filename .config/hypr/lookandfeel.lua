@@ -99,7 +99,13 @@ hl.config({
 		disable_splash_rendering = true, -- Disable hyprland random text on wallpapers
 		focus_on_activate = false,
 		force_default_wallpaper = 0, -- Set to 0 or 1 to disable the anime mascot wallpapers
-		on_focus_under_fullscreen = 0,
+		on_focus_under_fullscreen = 1,
+	},
+})
+
+hl.config({
+	binds = {
+		movefocus_cycles_fullscreen = true,
 	},
 })
 

@@ -35,7 +35,12 @@ hl.bind(mainMod .. " + SHIFT + down", hl.dsp.window.swap({ direction = "down" })
 hl.bind(mainMod .. " + TAB", function()
 	hl.dispatch(hl.dsp.window.cycle_next())
 	hl.dispatch(hl.dsp.window.bring_to_top())
-end)
+end, { dont_inhibit = true })
+
+hl.bind(mainMod .. " + SHIFT + TAB", function()
+	hl.dispatch(hl.dsp.window.cycle_next({ tiled = true, floating = true, next = false }))
+	hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top" }))
+end, { dont_inhibit = true })
 
 -- Lockscreen bind
 hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("qs ipc call lockscreen lock"))

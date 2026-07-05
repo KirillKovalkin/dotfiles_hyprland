@@ -9,7 +9,7 @@ local run = "uwsm app -- "
 
 DEFAULT_APPS.browser = run .. "google-chrome-stable"
 -- DEFAULT_APPS.fileManager = run .. "yazi" -- not using
-DEFAULT_APPS.menu = run .. "qs ipc call launcher toggle"
+DEFAULT_APPS.menu = "qs ipc call launcher toggle"
 DEFAULT_APPS.terminal = run .. "footclient"
 
 return DEFAULT_APPS

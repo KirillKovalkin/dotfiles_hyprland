@@ -8,11 +8,9 @@
 -- Example window rules that are useful
 
 local suppressMaximizeRule = hl.window_rule({
-	-- Ignore maximize requests from all apps. You'll probably like this.
 	name = "suppress-maximize-events",
 	match = { class = ".*" },
-
-	suppress_event = "maximize activate activatefocus",
+	suppress_event = "maximize",
 })
 -- suppressMaximizeRule:set_enabled(false)
 
@@ -69,6 +67,12 @@ hl.window_rule({
 })
 
 hl.window_rule({
+	name = "Steam Proton games",
+	match = { class = "steam_app_.*" },
+	workspace = 4,
+})
+
+hl.window_rule({
 	name = "Telegram",
 	match = { class = "org.telegram.desktop" },
 	workspace = 3,
@@ -78,12 +82,4 @@ hl.window_rule({
 	name = "Discord",
 	match = { class = "chrome-discord.com__app-Default" },
 	workspace = 3,
-})
-
-hl.window_rule({
-	name = "CS2 - low latency",
-	match = { class = "cs2" },
-	content = "game",
-	idle_inhibit = "fullscreen",
-	sync_fullscreen = true,
 })

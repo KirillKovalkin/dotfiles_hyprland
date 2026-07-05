@@ -123,7 +123,7 @@ Singleton {
   }
 
   Timer {
-    interval: 3000
+    interval: 10000
     running: true
     repeat: true
     onTriggered: { if (!cpuProc.running) cpuProc.running = true }
@@ -149,7 +149,7 @@ Singleton {
   }
 
   Timer {
-    interval: 5000
+    interval: 15000
     running: true
     repeat: true
     onTriggered: { if (!tempProc.running) tempProc.running = true }

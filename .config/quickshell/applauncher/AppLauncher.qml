@@ -53,7 +53,7 @@ Scope {
   }
 
   function launchApp(entry) {
-    entry.execute();
+    Quickshell.execDetached({ command: ["uwsm", "app", "--", entry.id] });
     launcherPanel.visible = false;
   }
 
