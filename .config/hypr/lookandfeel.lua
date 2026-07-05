@@ -19,7 +19,7 @@ hl.config({
 		resize_on_border = false,
 
 		-- Please see https://wiki.hypr.land/Configuring/Advanced-and-Cool/Tearing/ before you turn this on
-		allow_tearing = true,
+		allow_tearing = false,
 
 		layout = "dwindle",
 	},
@@ -99,6 +99,12 @@ hl.config({
 		disable_splash_rendering = true, -- Disable hyprland random text on wallpapers
 		focus_on_activate = false,
 		force_default_wallpaper = 0, -- Set to 0 or 1 to disable the anime mascot wallpapers
-		on_focus_under_fullscreen = 1,		
+		on_focus_under_fullscreen = 0,
+	},
+})
+
+hl.config({
+	render = {
+		direct_scanout = 2,
 	},
 })

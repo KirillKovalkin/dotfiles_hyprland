@@ -12,7 +12,7 @@ local suppressMaximizeRule = hl.window_rule({
 	name = "suppress-maximize-events",
 	match = { class = ".*" },
 
-	suppress_event = "maximize",
+	suppress_event = "maximize activate activatefocus",
 })
 -- suppressMaximizeRule:set_enabled(false)
 
@@ -78,4 +78,12 @@ hl.window_rule({
 	name = "Discord",
 	match = { class = "chrome-discord.com__app-Default" },
 	workspace = 3,
+})
+
+hl.window_rule({
+	name = "CS2 - low latency",
+	match = { class = "cs2" },
+	content = "game",
+	idle_inhibit = "fullscreen",
+	sync_fullscreen = true,
 })
