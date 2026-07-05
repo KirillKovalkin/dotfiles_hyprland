@@ -50,6 +50,7 @@ sudo pacman -S --needed --noconfirm \
   ffmpeg \
   foot \
   fzf \
+  hypridle \
   hyprlock \
   hyprpaper \
   hyprshot \
