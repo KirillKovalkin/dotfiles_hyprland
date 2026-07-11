@@ -117,9 +117,9 @@ for file in .bashrc .bash_profile; do
 done
 echo "✅ Bash configs installed"
 
-# ── 8. Copy ~/.config ─────────────────────────────────────────────────────────
+# ── 8. Copy $HOME/.config ─────────────────────────────────────────────────────
 
-echo "🔄 Installing configs to ~/.config..."
+echo "🔄 Installing configs to $HOME/.config..."
 
 readonly CONFIG_DIRS=(
   bash
@@ -292,7 +292,7 @@ echo "════════════════════════�
 echo "  ✅ All done!"
 echo ""
 echo "  Next steps:"
-echo "    - Place your wallpaper: ~/Pictures/Wallpaper/wallpaper.webp"
+echo "    - Place your wallpaper: $HOME/Pictures/Wallpaper/wallpaper.webp"
 echo "    - Reboot into Hyprland"
 echo "    - Open nvim — LazyVim will bootstrap itself on first launch"
 echo "══════════════════════════════════════════════════════════════════════════"
