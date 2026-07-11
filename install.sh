@@ -6,19 +6,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
 cd "$SCRIPT_DIR"
 
-# ── 1. System update first ────────────────────────────────────────────────────
-
-echo "🔄 Updating system before package install..."
-sudo pacman -Syu --noconfirm
-echo "✅ System updated"
-
-# ── 2. Build dependencies ─────────────────────────────────────────────────────
+# ── 1. Build dependencies ─────────────────────────────────────────────────────
 
 echo "🔧 Installing build dependencies..."
 sudo pacman -S --needed --noconfirm base-devel git
 echo "✅ Dependencies installed"
 
-# ── 3. Install paru (binary from AUR — much faster than building from source) ──
+# ── 2. Install paru ───────────────────────────────────────────────────────────
 
 echo "📦 Installing paru..."
 if command -v paru >/dev/null 2>&1; then
@@ -31,6 +25,12 @@ else
   cd "$SCRIPT_DIR"
   echo "✅ Paru installation complete"
 fi
+
+# ── 3. Copy pacman.conf ───────────────────────────────────────────────────────
+
+echo "📝 Updating pacman.conf..."
+sudo cp "$SCRIPT_DIR/pacman.conf" /etc/pacman.conf
+echo "✅ pacman.conf updated"
 
 # ── 4. Official repo packages ─────────────────────────────────────────────────
 
@@ -51,10 +51,11 @@ sudo pacman -S --needed --noconfirm \
   foot \
   fzf \
   hypridle \
-  hyprlock \
+  hyprland \
   hyprpaper \
   hyprshot \
   imagemagick \
+  jdk11-openjdk \
   libreoffice-fresh \
   neovim \
   noto-fonts \
@@ -90,25 +91,11 @@ paru -S --needed --noconfirm \
   visual-studio-code-bin
 echo "✅ AUR packages installed"
 
-# ── 6. Copy pacman.conf ───────────────────────────────────────────────────────
-
-echo "📝 Updating pacman.conf..."
-sudo cp /etc/pacman.conf /etc/pacman.conf.bak
-sudo cp "$SCRIPT_DIR/pacman.conf" /etc/pacman.conf
-echo "✅ pacman.conf updated (backup at /etc/pacman.conf.bak)"
-
-# ── 7. Copy bash configs ─────────────────────────────────────────────────────
+# ── 6. Copy bash configs ─────────────────────────────────────────────────────
 
 echo "🔄 Installing bash configs..."
 for file in .bashrc .bash_profile; do
-  if [ -f "$HOME/$file" ] && [ ! -L "$HOME/$file" ]; then
-    TS=$(date +%Y%m%d%H%M%S)
-    echo "Found existing $HOME/$file — moving to ${HOME}/${file}.bak.$TS"
-    mv "$HOME/$file" "${HOME}/${file}.bak.$TS"
-  else
-    rm -f "$HOME/$file"
-  fi
-
+  rm -f "$HOME/$file"
   if [ -f "$SCRIPT_DIR/$file" ]; then
     cp "$SCRIPT_DIR/$file" "$HOME/$file"
   else
@@ -117,7 +104,7 @@ for file in .bashrc .bash_profile; do
 done
 echo "✅ Bash configs installed"
 
-# ── 8. Copy $HOME/.config ─────────────────────────────────────────────────────
+# ── 7. Copy $HOME/.config ─────────────────────────────────────────────────────
 
 echo "🔄 Installing configs to $HOME/.config..."
 
@@ -146,18 +133,12 @@ else
 fi
 echo "✅ Configs installed"
 
-# ── 8.1 Neovim config: bootstrap LazyVim + Catppuccin ─────────────────────────
+# ── 7.1 Neovim config: bootstrap LazyVim + Catppuccin ─────────────────────────
+
 echo "🔧 Generating Neovim config for LazyVim + Catppuccin mocha..."
 
 NVIM_CONFIG="$HOME/.config/nvim"
-TS=$(date +%Y%m%d%H%M%S)
-
-# Backup existing config instead of destructive removal
-if [ -d "$NVIM_CONFIG" ] && [ ! -L "$NVIM_CONFIG" ]; then
-  echo "Found existing $NVIM_CONFIG — moving to ${NVIM_CONFIG}.bak.$TS"
-  mv "$NVIM_CONFIG" "${NVIM_CONFIG}.bak.$TS"
-fi
-
+rm -rf "$NVIM_CONFIG"
 mkdir -p "$NVIM_CONFIG/lua/config" "$NVIM_CONFIG/lua/plugins"
 
 cat > "$NVIM_CONFIG/init.lua" <<'EOF'
@@ -222,17 +203,18 @@ return {
 }
 EOF
 
-# Run lazy sync only if Neovim is available
 if command -v nvim >/dev/null 2>&1; then
   echo "⏳ Running 'nvim --headless +\"Lazy sync\" +qall'..."
-  nvim --headless +'Lazy sync' +qall || true
+  if ! nvim --headless +'Lazy sync' +qall; then
+    echo "⚠️  Lazy sync failed; run 'nvim' manually to finish plugin setup"
+  fi
 else
-  echo "⚠️ Neovim not found; skipping plugin sync. Install Neovim to complete setup."
+  echo "⚠️  Neovim not found; skipping plugin sync"
 fi
 
 echo "✅ Neovim config installed at $NVIM_CONFIG"
 
-# ── 9. Enable user systemd services ──────────────────────────────────────────
+# ── 8. Enable user systemd services ──────────────────────────────────────────
 
 echo "🔧 Enabling user systemd services..."
 if systemctl --user --version >/dev/null 2>&1; then
@@ -243,15 +225,16 @@ if systemctl --user --version >/dev/null 2>&1; then
     foot-server.socket || true
   echo "✅ User systemd services enabled (where available)"
 else
-  echo "⚠️ systemd --user not available; skipping user service enablement"
+  echo "⚠️  systemd --user not available; skipping user service enablement"
 fi
 
-# ── 10. Remove unwanted packages (if installed) ───────────────────────────────
+# ── 9. Remove unwanted packages (if installed) ───────────────────────────────
 
 echo "🗑️  Removing unwanted packages..."
 unwanted=(
   dolphin
   dunst
+  hyprlock
   kitty
   sddm
   wofi
@@ -271,7 +254,7 @@ else
   echo "ℹ️  None of the unwanted packages are installed"
 fi
 
-# ── 11. Full system upgrade ───────────────────────────────────────────────────
+# ── 10. Full system upgrade ───────────────────────────────────────────────────
 
 echo "🔄 Full system upgrade..."
 sudo pacman -Syu --noconfirm
@@ -285,7 +268,7 @@ else
   echo "ℹ️  No orphan packages found"
 fi
 
-# ── 12. Done ──────────────────────────────────────────────────────────────────
+# ── 11. Done ──────────────────────────────────────────────────────────────────
 
 echo ""
 echo "══════════════════════════════════════════════════════════════════════════"
