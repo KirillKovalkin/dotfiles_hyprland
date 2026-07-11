@@ -1,0 +1,14 @@
+[Unit]
+Description=Quickshell bar and desktop utilities
+Documentation=https://quickshell.outfoxxed.me/docs/
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionEnvironment=WAYLAND_DISPLAY
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/quickshell -n
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target

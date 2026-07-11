@@ -6,11 +6,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
 cd "$SCRIPT_DIR"
 
+warn() {
+  echo "⚠️  $*" >&2
+}
+
 # ── 1. Build dependencies ─────────────────────────────────────────────────────
 
 echo "🔧 Installing build dependencies..."
-sudo pacman -S --needed --noconfirm base-devel git
-echo "✅ Dependencies installed"
+if sudo pacman -S --needed --noconfirm base-devel git; then
+  echo "✅ Dependencies installed"
+else
+  warn "Build dependency install failed; continuing"
+fi
 
 # ── 2. Install paru ───────────────────────────────────────────────────────────
 
@@ -20,22 +27,28 @@ if command -v paru >/dev/null 2>&1; then
 else
   tmpdir="$(mktemp -d)"
   trap 'rm -rf "$tmpdir"' EXIT
-  git clone --depth 1 https://aur.archlinux.org/paru.git "$tmpdir/paru"
-  cd "$tmpdir/paru" && makepkg -si --noconfirm
+  if git clone --depth 1 https://aur.archlinux.org/paru.git "$tmpdir/paru" \
+    && (cd "$tmpdir/paru" && makepkg -si --noconfirm); then
+    echo "✅ Paru installation complete"
+  else
+    warn "Paru installation failed; AUR steps will be skipped"
+  fi
   cd "$SCRIPT_DIR"
-  echo "✅ Paru installation complete"
 fi
 
 # ── 3. Copy pacman.conf ───────────────────────────────────────────────────────
 
 echo "📝 Updating pacman.conf..."
-sudo cp "$SCRIPT_DIR/pacman.conf" /etc/pacman.conf
-echo "✅ pacman.conf updated"
+if sudo cp "$SCRIPT_DIR/pacman.conf" /etc/pacman.conf; then
+  echo "✅ pacman.conf updated"
+else
+  warn "pacman.conf update failed; continuing"
+fi
 
 # ── 4. Official repo packages ─────────────────────────────────────────────────
 
 echo "📥 Installing official packages..."
-sudo pacman -S --needed --noconfirm \
+if sudo pacman -S --needed --noconfirm \
   7zip \
   android-tools \
   bash-completion \
@@ -46,7 +59,7 @@ sudo pacman -S --needed --noconfirm \
   eza \
   fastfetch \
   fd \
-  feh \
+  imv \
   ffmpeg \
   foot \
   fzf \
@@ -78,18 +91,28 @@ sudo pacman -S --needed --noconfirm \
   uwsm \
   wiremix \
   quickshell \
-  zoxide
-echo "✅ Official packages installed"
+  zoxide; then
+  echo "✅ Official packages installed"
+else
+  warn "Official package install failed; continuing with config deployment"
+fi
 
 # ── 5. AUR packages ───────────────────────────────────────────────────────────
 
 echo "📥 Installing AUR packages..."
-paru -S --needed --noconfirm \
-  android-studio \
-  cursor-bin \
-  google-chrome \
-  visual-studio-code-bin
-echo "✅ AUR packages installed"
+if command -v paru >/dev/null 2>&1; then
+  if paru -S --needed --noconfirm \
+    android-studio \
+    cursor-bin \
+    google-chrome \
+    visual-studio-code-bin; then
+    echo "✅ AUR packages installed"
+  else
+    warn "AUR package install failed; continuing with config deployment"
+  fi
+else
+  warn "paru not available; skipping AUR packages"
+fi
 
 # ── 6. Copy bash configs ─────────────────────────────────────────────────────
 
@@ -132,6 +155,14 @@ else
   echo "ℹ️  No starship.toml in repo; skipping"
 fi
 echo "✅ Configs installed"
+
+mkdir -p "$HOME/.config/systemd/user"
+if [ -f "$SCRIPT_DIR/.config/systemd/user/quickshell.service" ]; then
+  cp "$SCRIPT_DIR/.config/systemd/user/quickshell.service" "$HOME/.config/systemd/user/quickshell.service"
+  echo "✅ quickshell.service installed"
+else
+  echo "ℹ️  No quickshell.service in repo; skipping"
+fi
 
 # ── 7.1 Neovim config: bootstrap LazyVim + Catppuccin ─────────────────────────
 
@@ -206,10 +237,10 @@ EOF
 if command -v nvim >/dev/null 2>&1; then
   echo "⏳ Running 'nvim --headless +\"Lazy sync\" +qall'..."
   if ! nvim --headless +'Lazy sync' +qall; then
-    echo "⚠️  Lazy sync failed; run 'nvim' manually to finish plugin setup"
+    warn "Lazy sync failed; run 'nvim' manually to finish plugin setup"
   fi
 else
-  echo "⚠️  Neovim not found; skipping plugin sync"
+  warn "Neovim not found; skipping plugin sync"
 fi
 
 echo "✅ Neovim config installed at $NVIM_CONFIG"
@@ -218,14 +249,20 @@ echo "✅ Neovim config installed at $NVIM_CONFIG"
 
 echo "🔧 Enabling user systemd services..."
 if systemctl --user --version >/dev/null 2>&1; then
-  systemctl --user enable --now \
+  systemctl --user daemon-reload || warn "systemd user daemon-reload failed"
+  if systemctl --user enable --now \
     hyprpaper.service \
     hyprpolkitagent.service \
     cliphist.service \
-    foot-server.socket || true
-  echo "✅ User systemd services enabled (where available)"
+    foot-server.socket \
+    hypridle.service \
+    quickshell.service; then
+    echo "✅ User systemd services enabled (where available)"
+  else
+    warn "Some user systemd services failed to enable or start; continuing"
+  fi
 else
-  echo "⚠️  systemd --user not available; skipping user service enablement"
+  warn "systemd --user not available; skipping user service enablement"
 fi
 
 # ── 9. Remove unwanted packages (if installed) ───────────────────────────────
@@ -248,8 +285,11 @@ for pkg in "${unwanted[@]}"; do
 done
 
 if [[ ${#to_remove[@]} -gt 0 ]]; then
-  sudo pacman -R --noconfirm "${to_remove[@]}"
-  echo "✅ Removed: ${to_remove[*]}"
+  if sudo pacman -R --noconfirm "${to_remove[@]}"; then
+    echo "✅ Removed: ${to_remove[*]}"
+  else
+    warn "Failed to remove some unwanted packages; continuing"
+  fi
 else
   echo "ℹ️  None of the unwanted packages are installed"
 fi
@@ -257,13 +297,29 @@ fi
 # ── 10. Full system upgrade ───────────────────────────────────────────────────
 
 echo "🔄 Full system upgrade..."
-sudo pacman -Syu --noconfirm
-paru -Syu --noconfirm
+if sudo pacman -Syu --noconfirm; then
+  echo "✅ Official repos upgraded"
+else
+  warn "Official repo upgrade failed; continuing"
+fi
+
+if command -v paru >/dev/null 2>&1; then
+  if paru -Syu --noconfirm; then
+    echo "✅ AUR packages upgraded"
+  else
+    warn "AUR upgrade failed; continuing"
+  fi
+else
+  warn "paru not available; skipping AUR upgrade"
+fi
 
 mapfile -t orphan_array < <(pacman -Qtdq || true)
 if [[ ${#orphan_array[@]} -gt 0 ]]; then
-  sudo pacman -Rns --noconfirm "${orphan_array[@]}"
-  echo "🗑️  Removed orphan packages"
+  if sudo pacman -Rns --noconfirm "${orphan_array[@]}"; then
+    echo "🗑️  Removed orphan packages"
+  else
+    warn "Orphan package removal failed; continuing"
+  fi
 else
   echo "ℹ️  No orphan packages found"
 fi
@@ -276,6 +332,7 @@ echo "  ✅ All done!"
 echo ""
 echo "  Next steps:"
 echo "    - Place your wallpaper: $HOME/Pictures/Wallpaper/wallpaper.webp"
+echo "    - Install Steam manually if needed (Super+Shift+S)"
 echo "    - Reboot into Hyprland"
 echo "    - Open nvim — LazyVim will bootstrap itself on first launch"
 echo "══════════════════════════════════════════════════════════════════════════"
