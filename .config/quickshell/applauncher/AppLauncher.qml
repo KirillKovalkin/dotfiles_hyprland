@@ -53,7 +53,11 @@ Scope {
   }
 
   function launchApp(entry) {
-    Quickshell.execDetached({ command: ["uwsm", "app", "--", entry.id] });
+    const desktopId = entry.id.endsWith(".desktop") ? entry.id : entry.id + ".desktop";
+    Quickshell.execDetached({
+      command: ["uwsm", "app", "--", desktopId],
+      workingDirectory: entry.workingDirectory ?? "",
+    });
     launcherPanel.visible = false;
   }
 
@@ -207,14 +211,21 @@ Scope {
           clip: true
           spacing: 2
           boundsBehavior: Flickable.StopAtBounds
-          currentIndex: root.selectedIndex
-          highlightMoveDuration: 150
-          highlightMoveVelocity: -1
 
-          highlight: Rectangle {
+          delegate: Rectangle {
+            id: delegateRoot
+            required property var modelData
+            required property int index
+
+            readonly property bool selected: root.selectedIndex === delegateRoot.index
+
+            Accessible.role: Accessible.Button
+            Accessible.name: (modelData.name ?? "Application") + (modelData.genericName ? " - " + modelData.genericName : "")
+
+            width: resultsList.width
+            height: 44
             radius: 8
-            color: root.theme.bgSelected
-            visible: root.selectedIndex >= 0
+            color: selected ? root.theme.bgSelected : "transparent"
 
             Rectangle {
               width: 3
@@ -224,21 +235,8 @@ Scope {
               anchors.left: parent.left
               anchors.leftMargin: 2
               anchors.verticalCenter: parent.verticalCenter
+              visible: delegateRoot.selected
             }
-          }
-
-          delegate: Rectangle {
-            id: delegateRoot
-            required property var modelData
-            required property int index
-
-            Accessible.role: Accessible.Button
-            Accessible.name: (modelData.name ?? "Application") + (modelData.genericName ? " - " + modelData.genericName : "")
-
-            width: resultsList.width
-            height: 44
-            radius: 8
-            color: "transparent"
 
             RowLayout {
               anchors.fill: parent
@@ -277,10 +275,10 @@ Scope {
 
                 Text {
                   text: delegateRoot.modelData.name ?? ""
-                  color: root.selectedIndex === delegateRoot.index ? root.theme.textPrimary : root.theme.textSecondary
+                  color: delegateRoot.selected ? root.theme.textPrimary : root.theme.textSecondary
                   font.pixelSize: 13
                   font.family: root.font
-                  font.bold: root.selectedIndex === delegateRoot.index
+                  font.bold: delegateRoot.selected
                   elide: Text.ElideRight
                   Layout.fillWidth: true
                 }
@@ -302,7 +300,7 @@ Scope {
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
               onClicked: root.launchApp(delegateRoot.modelData)
-              onPositionChanged: root.selectedIndex = delegateRoot.index
+              onEntered: root.selectedIndex = delegateRoot.index
             }
           }
 
