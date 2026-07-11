@@ -324,6 +324,28 @@ else
   echo "ℹ️  No orphan packages found"
 fi
 
+# ── 10.5 Reload session (if Hyprland is active) ───────────────────────────────
+
+if command -v hyprctl >/dev/null 2>&1 && hyprctl version >/dev/null 2>&1; then
+  echo "🔄 Reloading Hyprland config..."
+  if hyprctl reload; then
+    echo "✅ Hyprland config reloaded"
+  else
+    warn "hyprctl reload failed; config will apply on next Hyprland start"
+  fi
+
+  if systemctl --user --version >/dev/null 2>&1; then
+    echo "🔄 Restarting Quickshell..."
+    if systemctl --user restart quickshell.service; then
+      echo "✅ Quickshell restarted"
+    else
+      warn "Quickshell restart failed; config will apply on next start"
+    fi
+  fi
+else
+  echo "ℹ️  Hyprland not running — skipping session reload"
+fi
+
 # ── 11. Done ──────────────────────────────────────────────────────────────────
 
 echo ""
