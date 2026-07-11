@@ -3,7 +3,7 @@
 
 # All the default Omarchy aliases and functions
 # (don't mess with these directly, just overwrite them here!)
-source ~/.config/bash/rc
+source "$HOME/.config/bash/rc"
 
 # Add your own exports, aliases, and functions here.
 #

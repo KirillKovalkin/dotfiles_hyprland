@@ -1,6 +1,6 @@
-source ~/.config/bash/shell
-source ~/.config/bash/aliases
-source ~/.config/bash/functions
-source ~/.config/bash/init
-source ~/.config/bash/envs
-[[ $- == *i* ]] && bind -f ~/.config/bash/inputrc
+source "$HOME/.config/bash/shell"
+source "$HOME/.config/bash/aliases"
+source "$HOME/.config/bash/functions"
+source "$HOME/.config/bash/init"
+source "$HOME/.config/bash/envs"
+[[ $- == *i* ]] && bind -f "$HOME/.config/bash/inputrc"
