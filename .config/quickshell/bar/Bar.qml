@@ -11,9 +11,16 @@ Scope {
   // ── Bar visibility toggle (IPC) ──────────────────────────────────────────
   property bool barVisible: true
 
-  // Hide bar on this output while its active workspace has a fullscreen client.
-  // Matches hypr/monitors.lua — DP-1 is the 240 Hz primary/gaming monitor.
-  readonly property string autoHideOutput: "DP-1"
+  // Hide bar on fullscreen for this output (default DP-1; see machine.conf).
+  property string autoHideOutput: "DP-1"
+
+  FileView {
+    path: Quickshell.env("HOME") + "/.config/quickshell/machine.conf"
+    onTextChanged: {
+      const name = text().trim()
+      if (name !== "") root.autoHideOutput = name
+    }
+  }
 
   readonly property bool primaryFullscreenActive: {
     for (const m of Hyprland.monitors.values) {

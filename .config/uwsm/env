@@ -1,0 +1,9 @@
+# uwsm session env (apps via "uwsm app" + systemd user environment).
+# LIBVA: AMD RX 9060 XT → radeonsi (keep in sync with machine.lua libva_driver)
+
+export XCURSOR_SIZE=24
+export HYPRCURSOR_SIZE=24
+export ELECTRON_OZONE_PLATFORM_HINT=auto
+export QT_QPA_PLATFORM=wayland;xcb
+export GDK_BACKEND=wayland,x11
+export LIBVA_DRIVER_NAME=radeonsi

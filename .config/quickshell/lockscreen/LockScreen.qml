@@ -13,9 +13,18 @@ Scope {
   property var theme: Theme
   property string font: Theme.fontFamily
 
-  // ── Wallpaper path ──────────────────────────────────────────────────────
+  // ── Wallpaper path (optional override: quickshell/wallpaper.path) ───────
+  property string wallpaperRel: "Pictures/Wallpaper/wallpaper.webp"
   readonly property string wallpaperPath:
-    Quickshell.env("HOME") + "/Pictures/Wallpaper/wallpaper.webp"
+    Quickshell.env("HOME") + "/" + root.wallpaperRel
+
+  FileView {
+    path: Quickshell.env("HOME") + "/.config/quickshell/wallpaper.path"
+    onTextChanged: {
+      const rel = text().trim()
+      if (rel !== "") root.wallpaperRel = rel
+    }
+  }
 
   // ── Auth state ───────────────────────────────────────────────────────────
   property string password: ""

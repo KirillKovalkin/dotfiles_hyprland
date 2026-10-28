@@ -6,8 +6,44 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
 cd "$SCRIPT_DIR"
 
+# Flags (all optional):
+#   BACKUP=1   backup configs before overwrite (default 1; set 0 to skip)
+#   UPGRADE=1  run pacman/paru -Syu at the end (default 1; set 0 to skip)
+#   NVIM=1     regenerate LazyVim config (default 1; set 0 to keep existing)
+#   DRY_RUN=1  print plan and exit (no package/config changes)
+BACKUP="${BACKUP:-1}"
+UPGRADE="${UPGRADE:-1}"
+NVIM="${NVIM:-1}"
+DRY_RUN="${DRY_RUN:-0}"
+
 warn() {
   echo "⚠️  $*" >&2
+}
+
+if [[ "$DRY_RUN" == "1" ]]; then
+  echo "DRY_RUN=1 — plan only (BACKUP=$BACKUP UPGRADE=$UPGRADE NVIM=$NVIM)"
+  echo "  1) install official + AUR packages (--needed)"
+  echo "  2) backup+deploy bash + .config/{bash,hypr,quickshell,foot,fastfetch,uwsm}"
+  echo "  3) NVIM=$NVIM → regenerate ~/.config/nvim"
+  echo "  4) enable user services (hyprpaper hypridle quickshell …)"
+  echo "  5) remove dolphin dunst hyprlock kitty sddm wofi if present"
+  echo "  6) UPGRADE=$UPGRADE → pacman/paru -Syu + orphans"
+  echo "  7) hyprctl reload + restart quickshell if session active"
+  exit 0
+fi
+
+backup_path() {
+  local src="$1"
+  local stamp
+  stamp="$(date +%Y%m%d-%H%M%S)"
+  local dest="${src}.bak-${stamp}"
+  if [ -e "$src" ]; then
+    if cp -a "$src" "$dest"; then
+      echo "ℹ️  Backup: $src → $dest"
+    else
+      warn "Backup failed for $src; continuing"
+    fi
+  fi
 }
 
 # ── 1. Build dependencies ─────────────────────────────────────────────────────
@@ -83,6 +119,8 @@ if sudo pacman -S --needed --noconfirm \
   unzip \
   wireplumber \
   wl-clipboard \
+  xdg-desktop-portal \
+  xdg-desktop-portal-gtk \
   xdg-desktop-portal-hyprland \
   xorg-xwayland \
   yazi \
@@ -91,6 +129,8 @@ if sudo pacman -S --needed --noconfirm \
   uwsm \
   wiremix \
   quickshell \
+  lm_sensors \
+  iw \
   zoxide; then
   echo "✅ Official packages installed"
 else
@@ -118,6 +158,9 @@ fi
 
 echo "🔄 Installing bash configs..."
 for file in .bashrc .bash_profile; do
+  if [ "$BACKUP" = "1" ]; then
+    backup_path "$HOME/$file"
+  fi
   rm -f "$HOME/$file"
   if [ -f "$SCRIPT_DIR/$file" ]; then
     cp "$SCRIPT_DIR/$file" "$HOME/$file"
@@ -137,10 +180,14 @@ readonly CONFIG_DIRS=(
   foot
   hypr
   quickshell
+  uwsm
 )
 
 for dir in "${CONFIG_DIRS[@]}"; do
   if [ -d "$SCRIPT_DIR/.config/$dir" ]; then
+    if [ "$BACKUP" = "1" ]; then
+      backup_path "$HOME/.config/$dir"
+    fi
     rm -rf "$HOME/.config/$dir"
     cp -r "$SCRIPT_DIR/.config/$dir" "$HOME/.config/$dir"
   else
@@ -149,6 +196,9 @@ for dir in "${CONFIG_DIRS[@]}"; do
 done
 
 if [ -f "$SCRIPT_DIR/.config/starship.toml" ]; then
+  if [ "$BACKUP" = "1" ]; then
+    backup_path "$HOME/.config/starship.toml"
+  fi
   rm -f "$HOME/.config/starship.toml"
   cp "$SCRIPT_DIR/.config/starship.toml" "$HOME/.config/starship.toml"
 else
@@ -158,6 +208,9 @@ echo "✅ Configs installed"
 
 mkdir -p "$HOME/.config/systemd/user"
 if [ -f "$SCRIPT_DIR/.config/systemd/user/quickshell.service" ]; then
+  if [ "$BACKUP" = "1" ]; then
+    backup_path "$HOME/.config/systemd/user/quickshell.service"
+  fi
   cp "$SCRIPT_DIR/.config/systemd/user/quickshell.service" "$HOME/.config/systemd/user/quickshell.service"
   echo "✅ quickshell.service installed"
 else
@@ -166,9 +219,16 @@ fi
 
 # ── 7.1 Neovim config: bootstrap LazyVim + Catppuccin ─────────────────────────
 
+NVIM_CONFIG="$HOME/.config/nvim"
+if [ "$NVIM" != "1" ]; then
+  echo "ℹ️  NVIM=0 — keeping existing Neovim config at $NVIM_CONFIG"
+else
+
 echo "🔧 Generating Neovim config for LazyVim + Catppuccin mocha..."
 
-NVIM_CONFIG="$HOME/.config/nvim"
+if [ "$BACKUP" = "1" ]; then
+  backup_path "$NVIM_CONFIG"
+fi
 rm -rf "$NVIM_CONFIG"
 mkdir -p "$NVIM_CONFIG/lua/config" "$NVIM_CONFIG/lua/plugins"
 
@@ -245,6 +305,8 @@ fi
 
 echo "✅ Neovim config installed at $NVIM_CONFIG"
 
+fi # NVIM=1
+
 # ── 8. Enable user systemd services ──────────────────────────────────────────
 
 echo "🔧 Enabling user systemd services..."
@@ -296,6 +358,10 @@ fi
 
 # ── 10. Full system upgrade ───────────────────────────────────────────────────
 
+if [ "$UPGRADE" != "1" ]; then
+  echo "ℹ️  UPGRADE=0 — skipping pacman/paru -Syu and orphan removal"
+else
+
 echo "🔄 Full system upgrade..."
 if sudo pacman -Syu --noconfirm; then
   echo "✅ Official repos upgraded"
@@ -323,6 +389,8 @@ if [[ ${#orphan_array[@]} -gt 0 ]]; then
 else
   echo "ℹ️  No orphan packages found"
 fi
+
+fi # UPGRADE=1
 
 # ── 10.5 Reload session (if Hyprland is active) ───────────────────────────────
 
@@ -357,4 +425,8 @@ echo "    - Place your wallpaper: $HOME/Pictures/Wallpaper/wallpaper.webp"
 echo "    - Install Steam manually if needed (Super+Shift+S)"
 echo "    - Reboot into Hyprland"
 echo "    - Open nvim — LazyVim will bootstrap itself on first launch"
+echo "    - Host-specific: .config/hypr/machine.lua + .config/uwsm/env"
+echo ""
+echo "  Flags used: BACKUP=$BACKUP UPGRADE=$UPGRADE NVIM=$NVIM"
+echo "  Note: configs backed up as *.bak-<timestamp> when BACKUP=1."
 echo "══════════════════════════════════════════════════════════════════════════"

@@ -141,8 +141,9 @@ Scope {
     }
     showPreview = true
     if (!previewProc.running) {
+      // Prefer $XDG_RUNTIME_DIR (session-private) over world-readable /tmp.
       previewProc.command = ["sh", "-c",
-        'cliphist decode "$1" > /tmp/qs-clipboard-preview.png', "sh", entry.id]
+        'dir="${XDG_RUNTIME_DIR:-/tmp}"; f="$dir/qs-clipboard-preview.png"; cliphist decode "$1" > "$f"', "sh", entry.id]
       previewProc.running = true
     }
   }
@@ -504,8 +505,10 @@ Scope {
                 id: previewImage
                 anchors.fill: parent
                 anchors.margins: 8
+                // Mirror preview write path: XDG_RUNTIME_DIR with /tmp fallback.
                 source: root.showPreview
-                  ? ("file:///tmp/qs-clipboard-preview.png?" + root.previewRevision)
+                  ? ("file://" + (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp")
+                     + "/qs-clipboard-preview.png?" + root.previewRevision)
                   : ""
                 sourceSize.width: 520
                 sourceSize.height: 800

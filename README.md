@@ -2,24 +2,30 @@
 
 Personal dotfiles for Arch Linux with [Hyprland](https://hypr.land/), [Quickshell](https://quickshell.outfoxxed.me/) bar, and a single setup script.
 
+Session starts via **uwsm** from `.bash_profile` on tty1.
+
+## Hardware (this desktop)
+
+| Part | Value |
+|------|--------|
+| CPU | Intel Core i5-11500 |
+| GPU | AMD Radeon RX 9060 XT (drives monitors) |
+| VA-API | `LIBVA_DRIVER_NAME=radeonsi` in `.config/uwsm/env` |
+| Monitors | DP-1 `1920x1080@240`, HDMI-A-1 `1920x1080@60` |
+
+Host layout: `.config/hypr/machine.lua`.  
+App/toolkit env (incl. LIBVA): `.config/uwsm/env` — required for uwsm; Hyprland `env.lua` alone is not enough.
+
 ## What's included
 
 | Area | Location |
 |------|----------|
-| Hyprland (Lua config) | `.config/hypr/` |
-| Quickshell (bar, launcher, lock screen, OSD) | `.config/quickshell/` |
-| Bash (aliases, functions, starship) | `.bashrc`, `.config/bash/` |
+| Hyprland | `.config/hypr/` |
+| Quickshell | `.config/quickshell/` |
+| uwsm env | `.config/uwsm/env` |
+| Bash | `.bashrc`, `.config/bash/` |
 | Terminal | `.config/foot/` |
-| System info | `.config/fastfetch/` |
-| Quickshell systemd unit | `.config/systemd/user/quickshell.service` |
-
-Session starts via **uwsm** from `.bash_profile` on tty1.
-
-## Requirements
-
-- Arch Linux (or derivative with pacman)
-- sudo access
-- Internet connection (official repos + AUR)
+| Quickshell unit | `.config/systemd/user/quickshell.service` |
 
 ## Install
 
@@ -29,123 +35,84 @@ cd ~/dotfiles_hyprland
 ./install.sh
 ```
 
+Flags:
+
+```bash
+DRY_RUN=1 ./install.sh   # plan only
+BACKUP=0 ./install.sh    # no *.bak-* copies
+UPGRADE=0 ./install.sh   # skip final -Syu
+NVIM=0 ./install.sh      # keep existing ~/.config/nvim
+```
+
 ### What `install.sh` does
 
-1. Installs build tools and **paru** (if missing)
-2. Copies `pacman.conf` to `/etc/pacman.conf`
-3. Installs official packages (`--needed` skips already-installed)
-4. Installs AUR packages via paru (skipped if paru is unavailable)
-5. Overwrites bash configs and `.config/{bash,hypr,quickshell,foot,fastfetch}`
-6. Copies `quickshell.service` to `$HOME/.config/systemd/user/`
-7. Generates a fresh LazyVim + Catppuccin Neovim config and runs `Lazy sync`
-8. Enables user services: `hyprpaper`, `hyprpolkitagent`, `cliphist`, `foot-server`, `hypridle`, `quickshell`
-9. Removes conflicting packages: dolphin, dunst, hyprlock, kitty, sddm, wofi
-10. Runs a full system upgrade and removes orphan packages
+1. Build tools + **paru** (if missing)
+2. Copies `pacman.conf` → `/etc/pacman.conf`
+3. Official packages (`--needed`), including portals, `lm_sensors`, `iw`
+4. AUR packages via paru (if available)
+5. Backup (default) + deploy bash and `.config/{bash,hypr,quickshell,foot,fastfetch,uwsm}`
+6. `quickshell.service` → user systemd
+7. LazyVim Neovim (skip with `NVIM=0`)
+8. Enable: `hyprpaper`, `hyprpolkitagent`, `cliphist`, `foot-server`, `hypridle`, `quickshell`
+9. Remove if present: dolphin, dunst, hyprlock, kitty, sddm, wofi
+10. Full upgrade + orphans (skip with `UPGRADE=0`)
 
-**Resilience:** most package and upgrade steps log a warning and continue instead of aborting the script. Config deployment (steps 5–8) always runs after the package steps.
-
-**Warning:** config deployment is destructive — existing configs in the listed directories are deleted and replaced with no backup.
-
-Already-installed packages are not reinstalled; only missing ones are added. A full `-Syu` at the end may upgrade existing packages.
+**Warning:** deploy replaces listed config dirs; `BACKUP=1` keeps `*.bak-<timestamp>`.
 
 ## After install
 
-1. Place wallpaper at `$HOME/Pictures/Wallpaper/wallpaper.webp`
-2. Reboot and log in on tty1 (uwsm starts Hyprland)
-3. Open `nvim` once to finish LazyVim bootstrap if headless sync failed
-4. Install **Steam** manually if you use `Super+Shift+S` (requires driver setup on your side)
-
-Check services after login:
+1. Wallpaper: `$HOME/Pictures/Wallpaper/wallpaper.webp`
+2. Reboot → tty1
+3. Steam manually if needed (`Super+Shift+S`)
 
 ```bash
 systemctl --user status hyprpaper hypridle quickshell cliphist
 ```
 
+Idle/lock: `.config/hypr/hypridle.conf` (dim 10m → lock 15m → DPMS 20m → suspend 60m).
+
 ## Keybindings
 
-Modifier: **Super** (Windows key)
-
-### General
+Modifier: **Super**
 
 | Binding | Action |
 |---------|--------|
 | Super + Return | Terminal (foot) |
 | Super + Shift + R | App launcher |
-| Super + W | Close window |
-| Super + Shift + W | Kill window |
+| Super + W / Shift+W | Close / kill |
 | Super + M | Exit session |
-| Super + L | Lock screen |
-| Super + F | Toggle fullscreen |
-| Super + V | Toggle float |
-| Super + P | Toggle pseudo-tile |
-| Super + J | Toggle split (dwindle) |
+| Super + L | Lock |
+| Super + F / V / P / J | Fullscreen / float / pseudo / split |
 | Super + Tab | Next window |
-| Super + Shift + Tab | Previous window |
-| Super + G | Toggle scratchpad |
-| Super + Shift + G | Move to scratchpad |
-| Super + 1–0 | Switch workspace |
-| Super + Shift + 1–0 | Move window to workspace |
-| Super + scroll | Switch workspace |
-| Super + drag / Super + RMB drag | Move / resize window |
-| Print | Screenshot region (hyprshot → clipboard) |
+| Super + G | Scratchpad |
+| Super + 1–0 | Workspaces |
+| Print | Region shot → clipboard |
 | Super + Shift + V | Clipboard manager |
+| Super + Shift + B / Alt+B | Chrome / incognito |
+| Super + Shift + C / S / T | VS Code / Steam / Telegram |
+| Super + Shift + M/X/D/L | PWAs |
 
-### Applications
-
-| Binding | Action |
-|---------|--------|
-| Super + Shift + B | Browser (Chrome) |
-| Super + Shift + Alt + B | Browser incognito |
-| Super + Shift + C | VS Code |
-| Super + Shift + S | Steam (install manually) |
-| Super + Shift + T | Telegram |
-| Super + Shift + M | YouTube Music (PWA) |
-| Super + Shift + X | X.com (PWA) |
-| Super + Shift + D | Discord (PWA) |
-| Super + Shift + L | lamzu.net (PWA) |
-
-### Media & brightness
-
-| Binding | Action |
-|---------|--------|
-| XF86Audio* | Volume / mute / mic / player controls |
-| XF86MonBrightness* | Screen brightness |
-
-Keyboard layout: **us, ru** — toggle with **Super + Space**.
+Layout **us,ru** — Super + Space. XF86 keys: volume / brightness / playerctl.
 
 ## Shell
 
-Bash config is split under `.config/bash/`:
-
-- `shell` — history, completion
-- `init` — mise, starship, zoxide, fzf
-- `aliases` — ls (eza), cd (zoxide wrapper), git shortcuts
-- `functions` — compression, iso2sd, image/video transcode
-- `envs` — EDITOR, bat theme
-
-`cd` with no arguments goes home. Existing directories are entered directly; everything else goes through zoxide fuzzy jump.
-
-## Hyprland notes
-
-- Monitor layout is configured in `.config/hypr/monitors.lua` (machine-specific)
-- Wallpapers: `hyprpaper` reads `.config/hypr/hyprpaper.conf`; lock screen uses the same path in Quickshell
-- Idle/lock timeouts: `.config/hypr/hypridle.conf` (via `hypridle.service`)
-- Quickshell bar/launcher/lock: `quickshell.service` in `.config/systemd/user/`
-- Hyprland session autostart is handled by uwsm / systemd, not `autostart.lua`
+`.config/bash/`: `shell`, `init`, `aliases`, `functions`, `envs`.  
+Overrides: bottom of `.bashrc`.
 
 ## Useful commands
 
 ```bash
-hyprctl reload                 # reload Hyprland config
+hyprctl reload
 hyprctl hyprpaper reload
-qs ipc call launcher toggle
-imv -f image.png               # image viewer (fullscreen)
 systemctl --user restart quickshell hypridle
+qs ipc call launcher toggle
 ```
 
 ## Customization
 
-- App launcher and default apps: `.config/hypr/apps.lua`
-- Window rules: `.config/hypr/rules.lua`
-- Quickshell themes: `.config/quickshell/themeswitcher/themes.json`
-- Personal bash overrides: bottom of `.bashrc`
+- Host / monitors: `.config/hypr/machine.lua`
+- App env / LIBVA: `.config/uwsm/env`
+- Wallpaper: `.config/hypr/hyprpaper.conf` + `.config/quickshell/wallpaper.path`
+- Gaming bar auto-hide output: `.config/quickshell/machine.conf`
+- Apps / rules: `.config/hypr/apps.lua`, `rules.lua`
+- Themes: `.config/quickshell/themeswitcher/themes.json`

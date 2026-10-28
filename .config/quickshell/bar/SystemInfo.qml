@@ -132,8 +132,9 @@ Singleton {
   // ── Temperature (CPU + GPU in one sensors call, per-line SplitParser) ────
   Process {
     id: tempProc
+    // Skip entirely when lm_sensors is missing (fresh install / minimal chroot).
     command: ["sh", "-c",
-      "sensors 2>/dev/null | awk '/^edge:/{gsub(/\\+/,\"\"); gpu=int($2); hasGpu=1} /Package id 0:/{gsub(/\\+/,\"\"); cpu=int($4); hasCpu=1} /Tctl:/{gsub(/\\+/,\"\"); if(!hasCpu){cpu=int($2); hasCpu=1}} /Tdie:/{gsub(/\\+/,\"\"); if(!hasCpu){cpu=int($2); hasCpu=1}} END{printf \"cpu:%s\\ngpu:%s\\n\", hasCpu?cpu\"°C\":\"N/A\", hasGpu?gpu\"°C\":\"N/A\"}'"]
+      "command -v sensors >/dev/null 2>&1 || { printf 'cpu:N/A\\ngpu:N/A\\n'; exit 0; }; sensors 2>/dev/null | awk '/^edge:/{gsub(/\\+/,\"\"); gpu=int($2); hasGpu=1} /Package id 0:/{gsub(/\\+/,\"\"); cpu=int($4); hasCpu=1} /Tctl:/{gsub(/\\+/,\"\"); if(!hasCpu){cpu=int($2); hasCpu=1}} /Tdie:/{gsub(/\\+/,\"\"); if(!hasCpu){cpu=int($2); hasCpu=1}} END{printf \"cpu:%s\\ngpu:%s\\n\", hasCpu?cpu\"°C\":\"N/A\", hasGpu?gpu\"°C\":\"N/A\"}'"]
     running: true
     stdout: SplitParser {
       onRead: data => {
@@ -185,8 +186,9 @@ Singleton {
   // ── Network (event-driven via FileView, tab-separated, colon-safe, SplitParser) ──
   Process {
     id: netProc
+    // iw / iwgetid optional — ethernet path never needs them; wifi falls back to "WiFi".
     command: ["sh", "-c",
-      "for iface in /sys/class/net/*; do name=$(basename \"$iface\"); [ \"$name\" = lo ] && continue; oper=$(cat \"$iface/operstate\" 2>/dev/null); [ \"$oper\" != up ] && continue; carrier=$(cat \"$iface/carrier\" 2>/dev/null); [ \"$carrier\" != 1 ] && continue; if [ -d \"$iface/wireless\" ] || [ -d \"$iface/phy80211\" ]; then ssid=$(iwgetid \"$name\" -r 2>/dev/null || iw dev \"$name\" link 2>/dev/null | awk -F': ' '/SSID/{print $2}'); printf 'wifi\t%s\t%s\n' \"${ssid:-WiFi}\" \"$name\"; else printf 'ethernet\tEthernet\t%s\n' \"$name\"; fi; exit; done; printf 'disconnected\t\t\n'"]
+      "for iface in /sys/class/net/*; do name=$(basename \"$iface\"); [ \"$name\" = lo ] && continue; oper=$(cat \"$iface/operstate\" 2>/dev/null); [ \"$oper\" != up ] && continue; carrier=$(cat \"$iface/carrier\" 2>/dev/null); [ \"$carrier\" != 1 ] && continue; if [ -d \"$iface/wireless\" ] || [ -d \"$iface/phy80211\" ]; then ssid=$(command -v iwgetid >/dev/null && iwgetid \"$name\" -r 2>/dev/null; true); [ -z \"$ssid\" ] && ssid=$(command -v iw >/dev/null && iw dev \"$name\" link 2>/dev/null | awk -F': ' '/SSID/{print $2}'; true); printf 'wifi\t%s\t%s\n' \"${ssid:-WiFi}\" \"$name\"; else printf 'ethernet\tEthernet\t%s\n' \"$name\"; fi; exit; done; printf 'disconnected\t\t\n'"]
     running: true
     stdout: SplitParser {
       onRead: data => {
