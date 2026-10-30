@@ -13,7 +13,7 @@ Scope {
   property var theme: Theme
   property string font: Theme.fontFamily
 
-  // ── Wallpaper path (optional override: quickshell/wallpaper.path) ───────
+  // ── Wallpaper path (from scripts/sync-machine.sh → wallpaper.path) ─────
   property string wallpaperRel: "Pictures/Wallpaper/wallpaper.webp"
   readonly property string wallpaperPath:
     Quickshell.env("HOME") + "/" + root.wallpaperRel

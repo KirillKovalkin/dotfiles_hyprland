@@ -11,7 +11,9 @@ Scope {
   // ── Bar visibility toggle (IPC) ──────────────────────────────────────────
   property bool barVisible: true
 
-  // Hide bar on fullscreen for this output (default DP-1; see machine.conf).
+  // Hide bar on this output while its active workspace has a fullscreen client.
+  // Default DP-1; override via ~/.config/quickshell/machine.conf (one line: output name).
+  // Keep in sync with .config/hypr/machine.lua → gaming_output.
   property string autoHideOutput: "DP-1"
 
   FileView {

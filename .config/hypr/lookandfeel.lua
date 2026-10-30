@@ -100,6 +100,9 @@ hl.config({
 		focus_on_activate = false,
 		force_default_wallpaper = 0, -- Set to 0 or 1 to disable the anime mascot wallpapers
 		on_focus_under_fullscreen = 1,
+		-- Wake monitors after DPMS/suspend without needing a working after_sleep_cmd
+		mouse_move_enables_dpms = true,
+		key_press_enables_dpms = true,
 	},
 })
 
@@ -112,5 +115,6 @@ hl.config({
 hl.config({
 	render = {
 		direct_scanout = 2,
+		cm_auto_hdr = 0, -- no SDR↔HDR switches (black flash on DP-1)
 	},
 })

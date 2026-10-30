@@ -31,16 +31,18 @@ hl.bind(mainMod .. " + SHIFT + right", hl.dsp.window.swap({ direction = "right" 
 hl.bind(mainMod .. " + SHIFT + up", hl.dsp.window.swap({ direction = "up" }))
 hl.bind(mainMod .. " + SHIFT + down", hl.dsp.window.swap({ direction = "down" }))
 
--- Next Window
+-- Cycle windows on the current workspace (not MRU/history — Lua cycle_next
+-- in 0.57 has no hist). raise floating windows so they aren't buried.
+-- dont_inhibit: works even when apps grab keyboard (games/fullscreen).
 hl.bind(mainMod .. " + TAB", function()
 	hl.dispatch(hl.dsp.window.cycle_next())
-	hl.dispatch(hl.dsp.window.bring_to_top())
-end, { dont_inhibit = true })
+	hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top" }))
+end, { dont_inhibit = true, repeating = true })
 
 hl.bind(mainMod .. " + SHIFT + TAB", function()
-	hl.dispatch(hl.dsp.window.cycle_next({ tiled = true, floating = true, next = false }))
+	hl.dispatch(hl.dsp.window.cycle_next({ next = false }))
 	hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top" }))
-end, { dont_inhibit = true })
+end, { dont_inhibit = true, repeating = true })
 
 -- Lockscreen bind
 hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("qs ipc call lockscreen lock"))
