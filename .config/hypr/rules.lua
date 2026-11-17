@@ -54,8 +54,8 @@ hl.window_rule({
 })
 
 hl.window_rule({
-	name = "YouTube Music",
-	match = { class = "chrome-music.youtube.com__-Default" },
+	name = "Metrolist",
+	match = { title = "Metrolist Debug" },
 	workspace = 5,
 })
 

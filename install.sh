@@ -63,8 +63,8 @@ if command -v paru >/dev/null 2>&1; then
 else
   tmpdir="$(mktemp -d)"
   trap 'rm -rf "$tmpdir"' EXIT
-  if git clone --depth 1 https://aur.archlinux.org/paru.git "$tmpdir/paru" \
-    && (cd "$tmpdir/paru" && makepkg -si --noconfirm); then
+  if git clone --depth 1 https://aur.archlinux.org/paru.git "$tmpdir/paru" &&
+    (cd "$tmpdir/paru" && makepkg -si --noconfirm); then
     echo "✅ Paru installation complete"
   else
     warn "Paru installation failed; AUR steps will be skipped"
@@ -145,7 +145,7 @@ if command -v paru >/dev/null 2>&1; then
     android-studio \
     cursor-bin \
     google-chrome \
-    visual-studio-code-bin; then
+    metrolist-desktop-bin visual-studio-code-bin; then
     echo "✅ AUR packages installed"
   else
     warn "AUR package install failed; continuing with config deployment"
@@ -224,20 +224,20 @@ if [ "$NVIM" != "1" ]; then
   echo "ℹ️  NVIM=0 — keeping existing Neovim config at $NVIM_CONFIG"
 else
 
-echo "🔧 Generating Neovim config for LazyVim + Catppuccin mocha..."
+  echo "🔧 Generating Neovim config for LazyVim + Catppuccin mocha..."
 
-if [ "$BACKUP" = "1" ]; then
-  backup_path "$NVIM_CONFIG"
-fi
-rm -rf "$NVIM_CONFIG"
-mkdir -p "$NVIM_CONFIG/lua/config" "$NVIM_CONFIG/lua/plugins"
+  if [ "$BACKUP" = "1" ]; then
+    backup_path "$NVIM_CONFIG"
+  fi
+  rm -rf "$NVIM_CONFIG"
+  mkdir -p "$NVIM_CONFIG/lua/config" "$NVIM_CONFIG/lua/plugins"
 
-cat > "$NVIM_CONFIG/init.lua" <<'EOF'
+  cat >"$NVIM_CONFIG/init.lua" <<'EOF'
 -- bootstrap lazy.nvim, LazyVim and your plugins
 require("config.lazy")
 EOF
 
-cat > "$NVIM_CONFIG/lua/config/lazy.lua" <<'EOF'
+  cat >"$NVIM_CONFIG/lua/config/lazy.lua" <<'EOF'
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not (vim.uv or vim.loop).fs_stat(lazypath) then
   local lazyrepo = "https://github.com/folke/lazy.nvim.git"
@@ -279,7 +279,7 @@ require("lazy").setup({
 })
 EOF
 
-cat > "$NVIM_CONFIG/lua/plugins/colorscheme.lua" <<'EOF'
+  cat >"$NVIM_CONFIG/lua/plugins/colorscheme.lua" <<'EOF'
 return {
   {
     "catppuccin/nvim",
@@ -294,16 +294,16 @@ return {
 }
 EOF
 
-if command -v nvim >/dev/null 2>&1; then
-  echo "⏳ Running 'nvim --headless +\"Lazy sync\" +qall'..."
-  if ! nvim --headless +'Lazy sync' +qall; then
-    warn "Lazy sync failed; run 'nvim' manually to finish plugin setup"
+  if command -v nvim >/dev/null 2>&1; then
+    echo "⏳ Running 'nvim --headless +\"Lazy sync\" +qall'..."
+    if ! nvim --headless +'Lazy sync' +qall; then
+      warn "Lazy sync failed; run 'nvim' manually to finish plugin setup"
+    fi
+  else
+    warn "Neovim not found; skipping plugin sync"
   fi
-else
-  warn "Neovim not found; skipping plugin sync"
-fi
 
-echo "✅ Neovim config installed at $NVIM_CONFIG"
+  echo "✅ Neovim config installed at $NVIM_CONFIG"
 
 fi # NVIM=1
 
@@ -362,33 +362,33 @@ if [ "$UPGRADE" != "1" ]; then
   echo "ℹ️  UPGRADE=0 — skipping pacman/paru -Syu and orphan removal"
 else
 
-echo "🔄 Full system upgrade..."
-if sudo pacman -Syu --noconfirm; then
-  echo "✅ Official repos upgraded"
-else
-  warn "Official repo upgrade failed; continuing"
-fi
-
-if command -v paru >/dev/null 2>&1; then
-  if paru -Syu --noconfirm; then
-    echo "✅ AUR packages upgraded"
+  echo "🔄 Full system upgrade..."
+  if sudo pacman -Syu --noconfirm; then
+    echo "✅ Official repos upgraded"
   else
-    warn "AUR upgrade failed; continuing"
+    warn "Official repo upgrade failed; continuing"
   fi
-else
-  warn "paru not available; skipping AUR upgrade"
-fi
 
-mapfile -t orphan_array < <(pacman -Qtdq || true)
-if [[ ${#orphan_array[@]} -gt 0 ]]; then
-  if sudo pacman -Rns --noconfirm "${orphan_array[@]}"; then
-    echo "🗑️  Removed orphan packages"
+  if command -v paru >/dev/null 2>&1; then
+    if paru -Syu --noconfirm; then
+      echo "✅ AUR packages upgraded"
+    else
+      warn "AUR upgrade failed; continuing"
+    fi
   else
-    warn "Orphan package removal failed; continuing"
+    warn "paru not available; skipping AUR upgrade"
   fi
-else
-  echo "ℹ️  No orphan packages found"
-fi
+
+  mapfile -t orphan_array < <(pacman -Qtdq || true)
+  if [[ ${#orphan_array[@]} -gt 0 ]]; then
+    if sudo pacman -Rns --noconfirm "${orphan_array[@]}"; then
+      echo "🗑️  Removed orphan packages"
+    else
+      warn "Orphan package removal failed; continuing"
+    fi
+  else
+    echo "ℹ️  No orphan packages found"
+  fi
 
 fi # UPGRADE=1
 
