@@ -145,7 +145,8 @@ if command -v paru >/dev/null 2>&1; then
     android-studio \
     cursor-bin \
     google-chrome \
-    metrolist-desktop-bin visual-studio-code-bin; then
+    metrolist-desktop-bin \
+    visual-studio-code-bin; then
     echo "✅ AUR packages installed"
   else
     warn "AUR package install failed; continuing with config deployment"
