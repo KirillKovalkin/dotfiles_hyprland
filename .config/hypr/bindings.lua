@@ -112,8 +112,8 @@ hl.bind(mainMod .. " + SHIFT + C", hl.dsp.exec_cmd("uwsm app -- code"))
 hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("uwsm app -- steam"))
 hl.bind(mainMod .. " + SHIFT + T", hl.dsp.exec_cmd("uwsm app -- Telegram"))
 hl.bind(mainMod .. " + SHIFT + M", hl.dsp.exec_cmd("uwsm app -- metrolist"))
+hl.bind(mainMod .. " + SHIFT + D", hl.dsp.exec_cmd("uwsm app -- discord"))
 
 -- Launch WEB Applications
 hl.bind(mainMod .. " + SHIFT + X", hl.dsp.exec_cmd(apps.browser .. " --app='https://x.com'"))
-hl.bind(mainMod .. " + SHIFT + D", hl.dsp.exec_cmd(apps.browser .. " --app='https://discord.com/app'"))
 hl.bind(mainMod .. " + SHIFT + L", hl.dsp.exec_cmd(apps.browser .. " --app='https://www.lamzu.net/'"))

@@ -80,6 +80,6 @@ hl.window_rule({
 
 hl.window_rule({
 	name = "Discord",
-	match = { class = "chrome-discord.com__app-Default" },
+	match = { class = "discord" },
 	workspace = 3,
 })

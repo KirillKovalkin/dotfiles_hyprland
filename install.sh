@@ -92,6 +92,7 @@ if sudo pacman -S --needed --noconfirm \
   brightnessctl \
   btop \
   cliphist \
+  discord \
   eza \
   fastfetch \
   fd \
