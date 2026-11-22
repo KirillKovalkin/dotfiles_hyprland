@@ -55,7 +55,7 @@ hl.window_rule({
 
 hl.window_rule({
 	name = "Metrolist",
-	match = { title = "Metrolist Debug" },
+	match = { title = "Metrolist" },
 	workspace = 5,
 })
 
